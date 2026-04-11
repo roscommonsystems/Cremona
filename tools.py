@@ -1,3 +1,5 @@
+from globals import VOICE_LIST
+
 TOOLS = [
     {
         "type": "function",
@@ -54,7 +56,7 @@ TOOLS = [
                 "voice": {
                     "type": "string",
                     "description": "The voice name to switch to.",
-                    "enum": ["alexei","alexis","andy","anna","antoine","audrey","brian","claire","dawn","diana","dylan","gautam","grace","jennie","josh","kai","kenji","kevin","leo","lily"]
+                    "enum": VOICE_LIST
                 }
             },
             "required": ["voice"]

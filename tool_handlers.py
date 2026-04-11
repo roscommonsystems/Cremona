@@ -3,6 +3,8 @@ import json
 import logging
 import os
 
+from globals import MEMORIES_FILE_PATH, MAX_MEMORIES
+
 
 async def get_time(args: dict, ws) -> dict:
     now = datetime.datetime.now()
@@ -16,8 +18,7 @@ async def change_voice(args: dict, ws) -> dict:
 
 
 def load_memories_from_file() -> dict:
-    memories_file_path = os.path.join("data", "memories.json")
-    if not os.path.exists(memories_file_path):
+    if not os.path.exists(MEMORIES_FILE_PATH):
         return {}
     try:
         with open(memories_file_path, 'r', encoding='utf-8') as f:
@@ -36,12 +37,10 @@ def load_memories_from_file() -> dict:
 
 
 def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
-    memories_file_path = os.path.join("data", "memories.json")
-    max_memories = 20
     os.makedirs("data", exist_ok=True)
     try:
-        if os.path.exists(memories_file_path):
-            with open(memories_file_path, 'r', encoding='utf-8') as f:
+        if os.path.exists(MEMORIES_FILE_PATH):
+            with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
                 memories_list = json.load(f)
         else:
             memories_list = []
@@ -54,11 +53,11 @@ def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
                 break
 
         if not topic_found:
-            if len(memories_list) >= max_memories:
+            if len(memories_list) >= MAX_MEMORIES:
                 memories_list.pop(0)
             memories_list.append({"memory_topic": memory_topic, "memory_content": memory_content})
 
-        with open(memories_file_path, 'w', encoding='utf-8') as f:
+        with open(MEMORIES_FILE_PATH, 'w', encoding='utf-8') as f:
             json.dump(memories_list, f, indent=2, ensure_ascii=False)
         return True
     except PermissionError as e:

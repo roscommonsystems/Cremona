@@ -7,21 +7,9 @@ import websockets
 import numpy as np
 
 from env import *
+from globals import *
 from tools import TOOLS
 from tool_handlers import execute_tool, push_system_prompt
-
-
-URL = "wss://agents.assemblyai.com/v1/realtime"
-
-SAMPLE_RATE = 24000
-CHANNELS = 1
-DTYPE = "int16"
-
-MAX_RETRIES = 10
-BACKOFF_BASE = 1    # seconds
-BACKOFF_CAP = 60    # seconds
-
-INACTIVITY_TIMEOUT = 15 * 60  # seconds
 
 
 async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
@@ -32,7 +20,8 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
     await ws.send(json.dumps({
         "type": "session.update",
         "session": {
-            "greeting": "Hi! How can I help?",
+            "greeting": GREETING,
+            "voice": DEFAULT_VOICE,
             "tools": TOOLS,
         }
     }))
