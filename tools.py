@@ -34,37 +34,30 @@ TOOLS = [
     {
         "type": "function",
         "name": "change_voice",
-        "description": "Change the agent's voice. Call this when the user asks to change, switch, or use a different voice.",
+        "description": (
+            "Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
+            "Pick the voice that best matches the user's request based on these descriptions: "
+            "alexei (Russian male), alexis (American girl), andy (stoned college kid male), "
+            "anna (pleasant American female, hippy), antoine (French young male), "
+            "audrey (mature neutral accent female, dramatic), brian (young American boy), "
+            "claire (American girl, upbeat and friendly), dawn (soft-voiced American female), "
+            "diana (refined mature elegant female), dylan (straightforward middle-aged American male), "
+            "gautam (Indian male, slow-paced), grace (mysterious dramatic mature woman), "
+            "jennie (dainty delicate young female), josh (neutral middle-aged American male), "
+            "kai (ditzy California female), kenji (confident male with Japanese accent), "
+            "kevin (clear casual neutral conversational male), leo (deep male with Italian/Portuguese accent), "
+            "lily (cultured academic female)."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
                 "voice": {
                     "type": "string",
                     "description": "The voice name to switch to.",
-                    "enum": ["alexei","alexis","andy","anna","antoine","audrey","brian","claire","dawn","diana","dylan","gautam","grace","jennie","josh","kai","kenji","kevin","leo","lily","luke","marco","max","melissa","michael","nathan","nova","pete","santiago","sofia","summer","will","yuki","zoe"]
+                    "enum": ["alexei","alexis","andy","anna","antoine","audrey","brian","claire","dawn","diana","dylan","gautam","grace","jennie","josh","kai","kenji","kevin","leo","lily"]
                 }
             },
             "required": ["voice"]
         }
     },
 ]
-# alexei = russian male
-# alexis = american girl
-# andy = stoned college kid male
-# anna = pleasant american female hippy
-# antoine = french young male
-# audrey = mature neutral accent, female, dramatic
-# brian = young american boy
-# claire = girl american, female, upbeat and friendly, positive
-# dawn = female, soft voice, american
-# diana = refined female, mature, elegant
-# dylan = straight forward, male, middle age american
-# gautam = indian, male, slow paced, microsoft tech support
-# grace = woman, mysterious, dramatic, mature
-# jennie = daintly, delicate, female, young
-# josh = man, american, middle age, neutral accent
-# kai = stoned, california, ditzy, female, 
-# kenji =  male, confident, japanese accent, 
-# kevin = male, clear, casual, neutral, conversational
-# leo = male, deep, italian accent, Portuguese accent
-# lily = female, cultured, academic 

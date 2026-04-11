@@ -40,6 +40,7 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
 
     pending_tools: list[dict] = []
     agent_script_buffer = ""
+    last_agent_text = ""
     last_activity = [asyncio.get_event_loop().time()]
 
     async def inactivity_watchdog():
@@ -108,8 +109,8 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                 print(f"\rAgent: {agent_script_buffer}...", end="", flush=True)
 
             elif t == "transcript.agent":
+                last_agent_text = event['text']
                 agent_script_buffer = ""
-                print(f"Agent: {event['text']}")
 
             elif t == "tool.call":
                 # Accumulate tool results — send them after reply.done
@@ -121,21 +122,28 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
 
             elif t == "reply.done":
                 if event.get("status") == "interrupted":
-                    if agent_script_buffer:
-                        print(f"\rAgent (interrupted): {agent_script_buffer}      ")
-                        agent_script_buffer = ""
+                    text = last_agent_text or agent_script_buffer
+                    if text:
+                        print(f"\rAgent (interrupted): {text}      ")
+                    last_agent_text = ""
+                    agent_script_buffer = ""
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
                     pending_tools.clear()
-                elif pending_tools:
-                    # Send all accumulated tool results
-                    for tool in pending_tools:
-                        await ws.send(json.dumps({
-                            "type": "tool.result",
-                            "call_id": tool["call_id"],
-                            "result": json.dumps(tool["result"]),
-                        }))
-                    pending_tools.clear()
+                else:
+                    if last_agent_text:
+                        print(f"\rAgent: {last_agent_text}      ")
+                    last_agent_text = ""
+                    agent_script_buffer = ""
+                    if pending_tools:
+                        # Send all accumulated tool results
+                        for tool in pending_tools:
+                            await ws.send(json.dumps({
+                                "type": "tool.result",
+                                "call_id": tool["call_id"],
+                                "result": json.dumps(tool["result"]),
+                            }))
+                        pending_tools.clear()
 
             elif t in ("error", "session.error"):
                 print(f"Error: {event.get('message')}")
