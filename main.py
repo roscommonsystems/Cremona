@@ -43,6 +43,11 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
     last_agent_text = ""
     last_activity = [asyncio.get_event_loop().time()]
 
+    def play_tone(freq=440, duration=0.4, volume=0.3):
+        t = np.linspace(0, duration, int(SAMPLE_RATE * duration), endpoint=False)
+        wave = (np.sin(2 * np.pi * freq * t) * volume * 32767).astype(np.int16)
+        speaker.write(wave)
+
     async def inactivity_watchdog():
         while True:
             await asyncio.sleep(30)
@@ -50,11 +55,10 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                 print("\nNo activity detected, closing session...")
                 timed_out[0] = True
                 try:
-                    await ws.send(json.dumps({
-                        "type": "input.text",
-                        "text": "Say exactly: No activity detected, goodbye."
-                    }))
-                    await asyncio.sleep(5)
+                    play_tone(freq=440, duration=0.3)
+                    await asyncio.sleep(0.4)
+                    play_tone(freq=330, duration=0.5)
+                    await asyncio.sleep(0.6)
                 except Exception:
                     pass
                 await ws.close()
@@ -197,6 +201,7 @@ async def main():
                 async with websockets.connect(URL, additional_headers=headers) as ws:
                     await run_session(ws, speaker, mic_queue, session_ready, timed_out)
                 if timed_out[0]:
+                    print("Session ended due to inactivity.")
                     break  # inactivity timeout — do not reconnect
                 break  # run_session returned normally — clean exit
 
