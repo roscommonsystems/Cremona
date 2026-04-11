@@ -1,0 +1,4 @@
+sounddevice
+websockets
+numpy
+python-dotenv
