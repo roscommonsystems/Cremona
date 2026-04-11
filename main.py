@@ -37,6 +37,7 @@ async def run_session(ws, speaker, mic_queue, session_ready):
     await push_system_prompt(ws)
 
     pending_tools: list[dict] = []
+    agent_script_buffer = ""
 
     async def send_audio():
         try:
@@ -78,7 +79,12 @@ async def run_session(ws, speaker, mic_queue, session_ready):
             elif t == "reply.started":
                 print("Agent speaking...")
 
+            elif t == "transcript.agent.delta":
+                agent_script_buffer += event.get("text", "")
+                print(f"\rAgent: {agent_script_buffer}...", end="", flush=True)
+
             elif t == "transcript.agent":
+                agent_script_buffer = ""
                 print(f"Agent: {event['text']}")
 
             elif t == "tool.call":
@@ -91,6 +97,9 @@ async def run_session(ws, speaker, mic_queue, session_ready):
 
             elif t == "reply.done":
                 if event.get("status") == "interrupted":
+                    if agent_script_buffer:
+                        print(f"\rAgent (interrupted): {agent_script_buffer}      ")
+                        agent_script_buffer = ""
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
                     pending_tools.clear()
