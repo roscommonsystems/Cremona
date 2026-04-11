@@ -21,8 +21,10 @@ MAX_RETRIES = 10
 BACKOFF_BASE = 1    # seconds
 BACKOFF_CAP = 60    # seconds
 
+INACTIVITY_TIMEOUT = 15 * 60  # seconds
 
-async def run_session(ws, speaker, mic_queue, session_ready):
+
+async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
     """Manages one WebSocket session. Returns normally on clean exit (CancelledError).
     Lets ConnectionClosed propagate so the outer loop can retry."""
 
@@ -38,6 +40,24 @@ async def run_session(ws, speaker, mic_queue, session_ready):
 
     pending_tools: list[dict] = []
     agent_script_buffer = ""
+    last_activity = [asyncio.get_event_loop().time()]
+
+    async def inactivity_watchdog():
+        while True:
+            await asyncio.sleep(30)
+            if asyncio.get_event_loop().time() - last_activity[0] >= INACTIVITY_TIMEOUT:
+                print("\nNo activity detected, closing session...")
+                timed_out[0] = True
+                try:
+                    await ws.send(json.dumps({
+                        "type": "input.text",
+                        "text": "Say exactly: No activity detected, goodbye."
+                    }))
+                    await asyncio.sleep(5)
+                except Exception:
+                    pass
+                await ws.close()
+                return
 
     async def send_audio():
         try:
@@ -51,6 +71,7 @@ async def run_session(ws, speaker, mic_queue, session_ready):
             pass
 
     send_task = asyncio.create_task(send_audio())
+    watchdog_task = asyncio.create_task(inactivity_watchdog())
 
     try:
         async for message in ws:
@@ -65,15 +86,18 @@ async def run_session(ws, speaker, mic_queue, session_ready):
                 print("Session updated.")
 
             elif t == "input.speech.started":
+                last_activity[0] = asyncio.get_event_loop().time()
                 print("\rListening...                    ")
 
             elif t == "input.speech.stopped":
                 print("Processing...")
 
             elif t == "transcript.user.delta":
+                last_activity[0] = asyncio.get_event_loop().time()
                 print(f"\rYou: {event['text']}...", end="", flush=True)
 
             elif t == "transcript.user":
+                last_activity[0] = asyncio.get_event_loop().time()
                 print(f"\rYou: {event['text']}      ")
 
             elif t == "reply.started":
@@ -123,10 +147,12 @@ async def run_session(ws, speaker, mic_queue, session_ready):
     # ConnectionClosed is NOT caught here — surfaces to outer loop as retry signal
     finally:
         send_task.cancel()
-        try:
-            await send_task
-        except (asyncio.CancelledError, websockets.exceptions.ConnectionClosed):
-            pass
+        watchdog_task.cancel()
+        for task in (send_task, watchdog_task):
+            try:
+                await task
+            except (asyncio.CancelledError, websockets.exceptions.ConnectionClosed):
+                pass
 
 
 async def main():
@@ -150,6 +176,7 @@ async def main():
         while attempt <= MAX_RETRIES:
             # Reset shared state before each connection attempt
             session_ready.clear()
+            timed_out = [False]
             while not mic_queue.empty():
                 mic_queue.get_nowait()
 
@@ -160,7 +187,9 @@ async def main():
 
             try:
                 async with websockets.connect(URL, additional_headers=headers) as ws:
-                    await run_session(ws, speaker, mic_queue, session_ready)
+                    await run_session(ws, speaker, mic_queue, session_ready, timed_out)
+                if timed_out[0]:
+                    break  # inactivity timeout — do not reconnect
                 break  # run_session returned normally — clean exit
 
             except asyncio.CancelledError:
