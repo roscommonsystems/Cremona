@@ -91,6 +91,21 @@ async def push_system_prompt(ws) -> None:
     await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": prompt}}))
 
 
+async def code_information(args: dict, ws) -> dict:
+    file = args.get("file", "")
+    allowed = {"main.py", "tools.py", "tool_handlers.py", "globals.py", "env.py"}
+    if file not in allowed:
+        return {"error": f"File '{file}' is not available."}
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base_dir, file)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            contents = f.read()
+        return {"file": file, "contents": contents}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def create_memory(args: dict, ws) -> dict:
     topic = args.get("memory_topic", "")
     content = args.get("memory_content", "")
@@ -106,6 +121,7 @@ HANDLERS = {
     "get_time": get_time,
     "change_voice": change_voice,
     "create_memory": create_memory,
+    "code_information": code_information,
 }
 
 

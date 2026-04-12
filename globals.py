@@ -11,7 +11,7 @@ GREETING = "Hi! How can I help?"
 DEFAULT_VOICE = "kai"
 
 # Reconnection
-MAX_RETRIES = 10
+MAX_RETRIES = 4
 BACKOFF_BASE = 1    # seconds
 BACKOFF_CAP = 60    # seconds
 

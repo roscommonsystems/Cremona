@@ -62,4 +62,26 @@ TOOLS = [
             "required": ["voice"]
         }
     },
+    {
+        "type": "function",
+        "name": "code_information",
+        "description": (
+            "Read the source code of a file that makes up this AI agent. "
+            "Use this to accurately describe how components work or interact. "
+            "Available files: main.py (session/WebSocket logic), tools.py (tool schemas), "
+            "tool_handlers.py (tool implementations), globals.py (constants/config), env.py (env vars)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "description": "The source file to read.",
+                    "enum": ["main.py", "tools.py", "tool_handlers.py", "globals.py", "env.py"]
+                }
+            },
+            "required": ["file"],
+            "additionalProperties": False
+        }
+    },
 ]
