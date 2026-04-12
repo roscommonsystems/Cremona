@@ -7,8 +7,8 @@ import re
 import requests
 from datetime import datetime as dt
 
-from env import OPEN_ROUTER_API_KEY
-from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, GENERATED_IMAGES_DIR, IMAGE_ASPECT_RATIO, IMAGE_SIZE
+from config import OPEN_ROUTER_API_KEY
+from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
 
 current_voice = DEFAULT_VOICE
 
@@ -31,7 +31,7 @@ def load_memories_from_file() -> dict:
     if not os.path.exists(MEMORIES_FILE_PATH):
         return {}
     try:
-        with open(memories_file_path, 'r', encoding='utf-8') as f:
+        with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
             memories_list = json.load(f)
         formatted_memories = {}
         for entry in memories_list:
@@ -105,7 +105,7 @@ async def push_system_prompt(ws) -> None:
 
 async def code_information(args: dict, ws) -> dict:
     file = args.get("file", "")
-    allowed = {"main.py", "tools.py", "tool_handlers.py", "globals.py", "env.py"}
+    allowed = {"main.py", "tools.py", "tool_handlers.py", "globals.py", "config.py", "app.py"}
     if file not in allowed:
         return {"error": f"File '{file}' is not available."}
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -121,7 +121,7 @@ async def code_information(args: dict, ws) -> dict:
 async def generate_image(args: dict, ws) -> dict:
     prompt = args.get("prompt", "")
     if not OPEN_ROUTER_API_KEY:
-        return {"error": "OPEN_ROUTER_API_KEY is not configured in .env"}
+        return {"error": "OPEN_ROUTER_API_KEY is not configured"}
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -153,37 +153,25 @@ async def generate_image(args: dict, ws) -> dict:
         if not images:
             return {"error": "No images returned. Model may not have generated an image for this prompt."}
 
-        os.makedirs(GENERATED_IMAGES_DIR, exist_ok=True)
-        saved_files = []
-
+        data_urls = []
         for i, img in enumerate(images):
             data_url = img.get("image_url", {}).get("url", "")
-            match = re.match(r"data:image/(\w+);base64,(.+)", data_url, re.DOTALL)
-            if not match:
+            if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
+                data_urls.append(data_url)
+            else:
                 logging.warning(f"Unexpected image data format for image {i}")
-                continue
-            ext = match.group(1)
-            raw = base64.b64decode(match.group(2))
 
-            timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{i}.{ext}" if len(images) > 1 else f"{timestamp}.{ext}"
-            filepath = os.path.join(GENERATED_IMAGES_DIR, filename)
-            with open(filepath, "wb") as f:
-                f.write(raw)
-            saved_files.append(filename)
-            logging.info(f"Saved generated image: {filepath}")
+        if not data_urls:
+            return {"error": "Failed to decode any images"}
 
-        if not saved_files:
-            return {"error": "Failed to decode or save any images"}
-
-        return {"status": "saved", "files": saved_files, "directory": GENERATED_IMAGES_DIR}
+        return {"status": "generated", "images": data_urls}
 
     except requests.exceptions.Timeout:
         return {"error": "Image generation timed out (60s)"}
     except requests.exceptions.HTTPError as e:
         return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
     except Exception as e:
-        logging.error(f"open_router_generate_image failed: {e}")
+        logging.error(f"generate_image failed: {e}")
         return {"error": str(e)}
 
 
@@ -214,5 +202,5 @@ async def execute_tool(event: dict, ws) -> dict:
     else:
         result = {"error": f"Unknown tool: {event.get('name')}"}
     if "error" in result:
-        print(f"[tool error] {event.get('name', 'unknown')}: {result['error']}")
+        logging.warning(f"[tool error] {event.get('name', 'unknown')}: {result['error']}")
     return {"call_id": event.get("call_id", ""), "result": result}

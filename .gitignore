@@ -15,3 +15,4 @@ env.py
 # IDE
 .vscode/
 .idea/
+generated_images/

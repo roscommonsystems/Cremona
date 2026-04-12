@@ -1,3 +1,8 @@
+# Run locally with
+# source .venv/Scripts/activate
+# hypercorn app:app --bind 0.0.0.0:8080
+
+
 import asyncio
 import base64
 import json

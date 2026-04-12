@@ -4,7 +4,6 @@ URL = "wss://agents.assemblyai.com/v1/realtime"
 # Audio
 SAMPLE_RATE = 24000
 CHANNELS = 1
-DTYPE = "int16"
 
 # Session
 GREETING = "Hi! How can I help?"
@@ -21,13 +20,6 @@ INACTIVITY_TIMEOUT = 15 * 60  # seconds
 # Memory
 MEMORIES_FILE_PATH = "data/memories.json"
 MAX_MEMORIES = 10
-
-# Audio alerts
-import pathlib
-_ASSETS = pathlib.Path(__file__).parent / "assets"
-SOUND_OPEN    = str(_ASSETS / "cremona-open.wav")
-SOUND_ERROR   = str(_ASSETS / "cremona-error.wav")
-SOUND_WAITING = str(_ASSETS / "cremona-waiting.wav")
 
 # Voices
 VOICE_DESCRIPTIONS = {
@@ -53,9 +45,6 @@ VOICE_DESCRIPTIONS = {
     "lily": "cultured academic female",
 }
 VOICE_LIST = list(VOICE_DESCRIPTIONS.keys())
-
-# Image generation output directory
-GENERATED_IMAGES_DIR = "generated_images"
 
 # Image generation config (google/gemini-2.5-flash-image)
 # Aspect ratio options: "1:1" (1024x1024), "2:3" (832x1248), "3:2" (1248x832),
