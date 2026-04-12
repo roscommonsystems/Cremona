@@ -118,7 +118,7 @@ async def code_information(args: dict, ws) -> dict:
         return {"error": str(e)}
 
 
-async def open_router_generate_image(args: dict, ws) -> dict:
+async def generate_image(args: dict, ws) -> dict:
     prompt = args.get("prompt", "")
     if not OPEN_ROUTER_API_KEY:
         return {"error": "OPEN_ROUTER_API_KEY is not configured in .env"}
@@ -203,7 +203,7 @@ HANDLERS = {
     "change_voice": change_voice,
     "create_memory": create_memory,
     "code_information": code_information,
-    "open_router_generate_image": open_router_generate_image,
+    "generate_image": generate_image,
 }
 
 
@@ -213,4 +213,6 @@ async def execute_tool(event: dict, ws) -> dict:
         result = await handler(event.get("args", {}), ws)
     else:
         result = {"error": f"Unknown tool: {event.get('name')}"}
+    if "error" in result:
+        print(f"[tool error] {event.get('name', 'unknown')}: {result['error']}")
     return {"call_id": event.get("call_id", ""), "result": result}

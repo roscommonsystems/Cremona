@@ -56,7 +56,7 @@ TOOLS = [
     },
     {
         "type": "function",
-        "name": "open_router_generate_image",
+        "name": "generate_image",
         "description": (
             "Generate an image from a text description using AI. "
             "Call this when the user asks you to create, draw, or generate an image. "
