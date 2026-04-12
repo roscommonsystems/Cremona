@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import requests
+import time
 import io
 from PIL import Image
 from openai import AsyncOpenAI
@@ -201,14 +202,19 @@ async def generate_image(args: dict, ws) -> dict:
     }
 
     try:
+        print(f"[generate_image] Sending request to OpenRouter ({IMAGE_SIZE}, {IMAGE_ASPECT_RATIO})...")
+        _t0 = time.perf_counter()
         response = await asyncio.to_thread(
             requests.post, url, headers=headers, json=payload, timeout=45
         )
+        _elapsed = time.perf_counter() - _t0
+        print(f"[generate_image] Response received in {_elapsed:.2f}s — status {response.status_code}")
         response.raise_for_status()
         result = response.json()
 
         choices = result.get("choices", [])
         if not choices:
+            logging.warning(f"generate_image: no choices. Full response: {json.dumps(result)[:500]}")
             return {"error": "No choices returned from API"}
 
         message = choices[0].get("message", {})
@@ -390,11 +396,13 @@ async def edit_image(args: dict, ws) -> dict:
 
         choices = result.get("choices", [])
         if not choices:
+            logging.warning(f"edit_image: no choices. Full response: {json.dumps(result)[:500]}")
             return {"error": "No choices returned from API"}
 
         message = choices[0].get("message", {})
         images = message.get("images", [])
         if not images:
+            logging.warning(f"edit_image: no images in choices. Full response: {json.dumps(result)[:500]}")
             return {"error": "No images returned. Model may not have generated an image for this request."}
 
         # Store the first valid image as the current image
@@ -440,12 +448,17 @@ async def execute_tool(event: dict, ws) -> dict:
     print(f"[Tool Call] name: {tool_name}, args: {sanitized_args}")
 
     handler = HANDLERS.get(tool_name)
+    t0 = time.perf_counter()
     if handler:
         result = await handler(tool_args, ws)
     else:
         result = {"error": f"Unknown tool: {tool_name}"}
+    elapsed = time.perf_counter() - t0
+
     if "error" in result:
-        logging.warning(f"[tool error] {tool_name}: {result['error']}")
+        logging.warning(f"[tool error] {tool_name} (took {elapsed:.2f}s): {json.dumps(result)}")
+    else:
+        print(f"[Tool Done] {tool_name} completed in {elapsed:.2f}s")
     return {"call_id": event.get("call_id", ""), "result": result}
 
 
