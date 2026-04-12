@@ -23,8 +23,26 @@ MEMORIES_FILE_PATH = "data/memories.json"
 MAX_MEMORIES = 10
 
 # Voices
-VOICE_LIST = [
-    "alexei", "alexis", "andy", "anna", "antoine", "audrey", "brian", "claire",
-    "dawn", "diana", "dylan", "gautam", "grace", "jennie", "josh", "kai", "kenji",
-    "kevin", "leo", "lily"
-]
+VOICE_DESCRIPTIONS = {
+    "alexei": "Russian male",
+    "alexis": "American girl",
+    "andy": "stoned college kid male",
+    "anna": "pleasant American female, hippy",
+    "antoine": "French young male",
+    "audrey": "mature neutral accent female, dramatic",
+    "brian": "young American boy",
+    "claire": "American girl, upbeat and friendly",
+    "dawn": "soft-voiced American female",
+    "diana": "refined mature elegant female",
+    "dylan": "straightforward middle-aged American male",
+    "gautam": "Indian male, slow-paced",
+    "grace": "mysterious dramatic mature woman",
+    "jennie": "dainty delicate young female",
+    "josh": "neutral middle-aged American male",
+    "kai": "ditzy California female",
+    "kenji": "confident male with Japanese accent",
+    "kevin": "clear casual neutral conversational male",
+    "leo": "deep male with Italian/Portuguese accent",
+    "lily": "cultured academic female",
+}
+VOICE_LIST = list(VOICE_DESCRIPTIONS.keys())

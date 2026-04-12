@@ -1,4 +1,6 @@
-from globals import VOICE_LIST
+from globals import VOICE_LIST, VOICE_DESCRIPTIONS
+
+_voice_desc_str = ", ".join(f"{v} ({VOICE_DESCRIPTIONS[v]})" for v in VOICE_LIST)
 
 TOOLS = [
     {
@@ -38,17 +40,7 @@ TOOLS = [
         "name": "change_voice",
         "description": (
             "Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
-            "Pick the voice that best matches the user's request based on these descriptions: "
-            "alexei (Russian male), alexis (American girl), andy (stoned college kid male), "
-            "anna (pleasant American female, hippy), antoine (French young male), "
-            "audrey (mature neutral accent female, dramatic), brian (young American boy), "
-            "claire (American girl, upbeat and friendly), dawn (soft-voiced American female), "
-            "diana (refined mature elegant female), dylan (straightforward middle-aged American male), "
-            "gautam (Indian male, slow-paced), grace (mysterious dramatic mature woman), "
-            "jennie (dainty delicate young female), josh (neutral middle-aged American male), "
-            "kai (ditzy California female), kenji (confident male with Japanese accent), "
-            "kevin (clear casual neutral conversational male), leo (deep male with Italian/Portuguese accent), "
-            "lily (cultured academic female)."
+            f"Pick the voice that best matches the user's request based on these descriptions: {_voice_desc_str}."
         ),
         "parameters": {
             "type": "object",

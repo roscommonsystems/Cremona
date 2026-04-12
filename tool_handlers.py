@@ -3,7 +3,9 @@ import json
 import logging
 import os
 
-from globals import MEMORIES_FILE_PATH, MAX_MEMORIES
+from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS
+
+current_voice = DEFAULT_VOICE
 
 
 async def get_time(args: dict, ws) -> dict:
@@ -12,8 +14,11 @@ async def get_time(args: dict, ws) -> dict:
 
 
 async def change_voice(args: dict, ws) -> dict:
+    global current_voice
     voice = args.get("voice", "")
     await ws.send(json.dumps({"type": "session.update", "session": {"voice": voice}}))
+    current_voice = voice
+    await push_system_prompt(ws)
     return {"success": True, "voice": voice}
 
 
@@ -74,11 +79,13 @@ def format_memories_for_prompt(memories_dict: dict) -> str:
     return "\n".join(f"- {topic}: {content}" for topic, content in memories_dict.items())
 
 
-def build_system_prompt(memory_str: str) -> str:
+def build_system_prompt(memory_str: str, voice: str) -> str:
+    voice_desc = VOICE_DESCRIPTIONS.get(voice, voice)
     base = (
         "You are a voice assistant. Keep responses to 1-2 short sentences. "
         "When you call a tool, always begin your spoken reply with the tool name "
-        "(replace underscores with spaces, e.g. 'create memory: Got it, I'll remember that.')."
+        "(replace underscores with spaces, e.g. 'create memory: Got it, I'll remember that.'). "
+        f"Your current voice is {voice} ({voice_desc})."
     )
     if memory_str and memory_str != "No stored memories.":
         return f"{base}\n\n## Remembered about the user:\n{memory_str}"
@@ -87,7 +94,7 @@ def build_system_prompt(memory_str: str) -> str:
 
 async def push_system_prompt(ws) -> None:
     memories = load_memories_from_file()
-    prompt = build_system_prompt(format_memories_for_prompt(memories))
+    prompt = build_system_prompt(format_memories_for_prompt(memories), current_voice)
     await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": prompt}}))
 
 
