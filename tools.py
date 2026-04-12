@@ -104,7 +104,7 @@ TOOLS = [
                 "file": {
                     "type": "string",
                     "description": "The source file to read.",
-                    "enum": ["main.py", "tools.py", "tool_handlers.py", "globals.py", "env.py"]
+                    "enum": ["main.py", "tools.py", "tool_handlers.py", "image_store.py", "globals.py", "env.py"]
                 }
             },
             "required": ["file"],
