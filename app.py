@@ -130,15 +130,12 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     waiting_sound_active = True
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "start"})
                 tool_result = await execute_tool(event, aai_ws)
-                # Check if generate_image produced images — retrieve from store and send to browser
+                # Check if generate_image or edit_image produced an image
                 result_data = tool_result.get("result", {})
-                if isinstance(result_data, dict) and result_data.get("image_ids"):
-                    for image_id in result_data["image_ids"]:
-                        img_data_url = get_image_data_url(image_id)
-                        if img_data_url:
-                            await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
-                        # Store the current displayed image ID on the websocket for session tracking
-                        aai_ws.current_image_id = image_id
+                if isinstance(result_data, dict) and result_data.get("has_image"):
+                    img_data_url = get_image_data_url()
+                    if img_data_url:
+                        await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
                 pending_tools.append(tool_result)
 
             elif t == "reply.audio":

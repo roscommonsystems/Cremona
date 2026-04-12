@@ -161,7 +161,7 @@ async def generate_image(args: dict, ws) -> dict:
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response = requests.post(url, headers=headers, json=payload, timeout=45)
         response.raise_for_status()
         result = response.json()
 
@@ -174,32 +174,21 @@ async def generate_image(args: dict, ws) -> dict:
         if not images:
             return {"error": "No images returned. Model may not have generated an image for this prompt."}
 
-        # Store images in the image store and collect IDs for reference
-        image_ids = []
-        image_count = 0
+        # Store the first valid image as the current image
         for img in images:
             data_url = img.get("image_url", {}).get("url", "")
             if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
-                image_id = store_image(data_url, prompt)
-                image_ids.append(image_id)
-                image_count = image_count + 1
-            else:
-                logging.warning(f"Unexpected image data format for image")
+                store_image(data_url, prompt)
+                return {
+                    "status": "generated",
+                    "has_image": True,
+                    "prompt": prompt,
+                }
 
-        if image_count == 0:
-            return {"error": "Failed to decode any images"}
-
-        # Return image IDs for retrieval, NOT the full base64 data
-        # The full image data is retrieved by app.py and sent to the browser separately
-        return {
-            "status": "generated",
-            "image_ids": image_ids,
-            "count": image_count,
-            "prompt": prompt,
-        }
+        return {"error": "Failed to decode image"}
 
     except requests.exceptions.Timeout:
-        return {"error": "Image generation timed out (60s)"}
+        return {"error": "Image generation timed out (45s)"}
     except requests.exceptions.HTTPError as e:
         return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
     except Exception as e:
@@ -223,17 +212,10 @@ async def describe_current_image(args: dict, ws) -> dict:
     # Get the optional focus parameter from the user's request
     focus = args.get("focus", "")
 
-    # Access the session state from the websocket
-    current_image_id = getattr(ws, "current_image_id", None)
-
-    if not current_image_id:
-        return {"error": "No image is currently displayed. Please create an image first."}
-
-    # Get the image data URL from the image store
-    image_data_url = get_image_data_url(current_image_id)
-
+    # Get the current image data URL
+    image_data_url = get_image_data_url()
     if not image_data_url:
-        return {"error": "Could not retrieve the current image. It may have expired."}
+        return {"error": "No image is currently displayed. Please create an image first."}
 
     if not OPEN_ROUTER_API_KEY:
         return {"error": "OPEN_ROUTER_API_KEY is not configured"}
@@ -244,7 +226,7 @@ async def describe_current_image(args: dict, ws) -> dict:
         # Extract base64 data from the data URL
         # Data URL format: data:image/{format};base64,{base64_data}
         if "," not in image_data_url:
-            logging.error(f"Invalid data URL format for image {current_image_id}")
+            logging.error("Invalid data URL format for current image")
             return {"error": "Invalid image data format"}
 
         header, encoded = image_data_url.split(",", 1)
@@ -270,7 +252,7 @@ async def describe_current_image(args: dict, ws) -> dict:
         logging.error(f"Failed to convert image to JPEG: {e}")
         return {"error": f"Failed to process image: {str(e)}"}
 
-    logging.debug(f"Attempting to describe image with ID: {current_image_id}")
+    logging.debug("Attempting to describe current image")
 
     # Build the prompt based on whether a specific focus was requested
     if focus:
@@ -305,7 +287,7 @@ async def describe_current_image(args: dict, ws) -> dict:
             timeout=30,
         )
 
-        logging.debug(f"Response received from OpenRouter")
+        logging.debug("Response received from OpenRouter")
 
         description = response.choices[0].message.content
 
@@ -317,7 +299,6 @@ async def describe_current_image(args: dict, ws) -> dict:
         return {
             "status": "success",
             "description": description,
-            "image_id": current_image_id,
         }
 
     except Exception as e:
@@ -332,17 +313,10 @@ async def edit_image(args: dict, ws) -> dict:
     if not edit_request:
         return {"error": "No edit request provided."}
 
-    # Access the session state from the websocket
-    current_image_id = getattr(ws, "current_image_id", None)
-
-    if not current_image_id:
-        return {"error": "No image is currently displayed. Please create an image first."}
-
-    # Get the image data URL from the image store
-    image_data_url = get_image_data_url(current_image_id)
-
+    # Get the current image data URL
+    image_data_url = get_image_data_url()
     if not image_data_url:
-        return {"error": "Could not retrieve the current image. It may have expired."}
+        return {"error": "No image is currently displayed. Please create an image first."}
 
     if not OPEN_ROUTER_API_KEY:
         return {"error": "OPEN_ROUTER_API_KEY is not configured"}
@@ -351,7 +325,7 @@ async def edit_image(args: dict, ws) -> dict:
     try:
         # Extract base64 data from the data URL
         if "," not in image_data_url:
-            logging.error(f"Invalid data URL format for image {current_image_id}")
+            logging.error("Invalid data URL format for current image")
             return {"error": "Invalid image data format"}
 
         header, encoded = image_data_url.split(",", 1)
@@ -371,13 +345,13 @@ async def edit_image(args: dict, ws) -> dict:
 
         # Create new data URL with JPEG MIME type
         image_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
-        logging.debug(f"Image converted to JPEG format successfully")
+        logging.debug("Image converted to JPEG format successfully")
 
     except Exception as e:
         logging.error(f"Failed to convert image to JPEG: {e}")
         return {"error": f"Failed to process image: {str(e)}"}
 
-    logging.debug(f"Attempting to edit image with ID: {current_image_id}")
+    logging.debug("Attempting to edit current image")
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -412,14 +386,14 @@ async def edit_image(args: dict, ws) -> dict:
         "stream": False,
     }
 
-    logging.debug(f"Sending request to OpenRouter for image editing")
+    logging.debug("Sending request to OpenRouter for image editing")
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response = requests.post(url, headers=headers, json=payload, timeout=45)
         logging.debug(f"Response received with status: {response.status_code}")
         response.raise_for_status()
         result = response.json()
-        logging.debug(f"Response JSON parsed successfully")
+        logging.debug("Response JSON parsed successfully")
 
         choices = result.get("choices", [])
         if not choices:
@@ -430,33 +404,22 @@ async def edit_image(args: dict, ws) -> dict:
         if not images:
             return {"error": "No images returned. Model may not have generated an image for this request."}
 
-        # Store images in the image store and collect IDs for reference
-        image_ids = []
-        image_count = 0
+        # Store the first valid image as the current image
         for img in images:
             data_url = img.get("image_url", {}).get("url", "")
             if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
-                image_id = store_image(data_url, edit_request)
-                image_ids.append(image_id)
-                image_count = image_count + 1
-            else:
-                logging.warning(f"Unexpected image data format for image")
+                store_image(data_url, edit_request)
+                return {
+                    "status": "edited",
+                    "has_image": True,
+                    "edit_request": edit_request,
+                }
 
-        if image_count == 0:
-            return {"error": "Failed to decode any images"}
-
-        # Return image IDs for retrieval, NOT the full base64 data
-        # The full image data is retrieved by app.py and sent to the browser separately
-        return {
-            "status": "edited",
-            "image_ids": image_ids,
-            "count": image_count,
-            "edit_request": edit_request,
-        }
+        return {"error": "Failed to decode image"}
 
     except requests.exceptions.Timeout:
         logging.error("Image editing request timed out")
-        return {"error": "Image editing timed out (60s)"}
+        return {"error": "Image editing timed out (45s)"}
     except requests.exceptions.HTTPError as e:
         logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:500]}")
         return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
