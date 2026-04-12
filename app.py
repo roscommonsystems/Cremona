@@ -137,6 +137,8 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                         img_data_url = get_image_data_url(image_id)
                         if img_data_url:
                             await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
+                        # Store the current displayed image ID on the websocket for session tracking
+                        aai_ws.current_image_id = image_id
                 pending_tools.append(tool_result)
 
             elif t == "reply.audio":

@@ -97,4 +97,18 @@ TOOLS = [
             "additionalProperties": False
         }
     },
+    {
+        "type": "function",
+        "name": "describe_current_image",
+        "description": (
+            "Provide an extended description of the image currently displayed to the user. "
+            "Call this when the user asks you to describe, analyze, or tell them about the current image. "
+            "Returns a detailed description of the image content."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False
+        }
+    },
 ]

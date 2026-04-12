@@ -9,7 +9,7 @@ from datetime import datetime as dt
 
 from config import OPEN_ROUTER_API_KEY
 from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
-from image_store import store_image
+from image_store import store_image, get_image_data_url
 
 current_voice = DEFAULT_VOICE
 
@@ -198,12 +198,88 @@ async def create_memory(args: dict, ws) -> dict:
         return {"status": "error", "message": "Failed to save memory"}
 
 
+async def describe_current_image(args: dict, ws) -> dict:
+    """Describe the image currently displayed to the user using a VLM."""
+    # Access the session state from the websocket
+    current_image_id = getattr(ws, "current_image_id", None)
+    
+    if not current_image_id:
+        return {"error": "No image is currently displayed. Please create an image first."}
+    
+    # Get the image data URL from the image store
+    image_data = get_image_data_url(current_image_id)
+    
+    if not image_data:
+        return {"error": "Could not retrieve the current image. It may have expired."}
+    
+    if not OPEN_ROUTER_API_KEY:
+        return {"error": "OPEN_ROUTER_API_KEY is not configured"}
+    
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    
+    payload = {
+        "model": "meta-llama/llama-4-maverick",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Please provide a detailed, extended description of this image. Describe the scene, subjects, colors, composition, style, mood, and any notable details."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_data
+                        }
+                    }
+                ]
+            }
+        ],
+        "stream": False,
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        
+        choices = result.get("choices", [])
+        if not choices:
+            return {"error": "No response from VLM"}
+        
+        message = choices[0].get("message", {})
+        description = message.get("content", "")
+        
+        if not description:
+            return {"error": "Empty description received from VLM"}
+        
+        return {
+            "status": "success",
+            "description": description,
+            "image_id": current_image_id,
+        }
+        
+    except requests.exceptions.Timeout:
+        return {"error": "Image description timed out (30s)"}
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        logging.error(f"describe_current_image failed: {e}")
+        return {"error": str(e)}
+
+
 HANDLERS = {
     "get_time": get_time,
     "change_voice": change_voice,
     "create_memory": create_memory,
     "code_information": code_information,
     "generate_image": generate_image,
+    "describe_current_image": describe_current_image,
 }
 
 
