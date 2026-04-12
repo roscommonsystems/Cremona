@@ -103,11 +103,18 @@ TOOLS = [
         "description": (
             "Provide an extended description of the image currently displayed to the user. "
             "Call this when the user asks you to describe, analyze, or tell them about the current image. "
-            "Returns a detailed description of the image content."
+            "Returns a detailed description of the image content. "
+            "If the user asks about a specific area or aspect (e.g. 'left side', 'the person', 'the building'), "
+            "provide that as the focus parameter."
         ),
         "parameters": {
             "type": "object",
-            "properties": {},
+            "properties": {
+                "focus": {
+                    "type": "string",
+                    "description": "Optional specific area or aspect to focus on (e.g. 'left side', 'the person', 'the background'). If not provided, describe the entire image."
+                }
+            },
             "additionalProperties": False
         }
     },

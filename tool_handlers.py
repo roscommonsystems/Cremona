@@ -8,10 +8,17 @@ import requests
 import io
 from datetime import datetime as dt
 from PIL import Image
+from openai import AsyncOpenAI
 
 from config import OPEN_ROUTER_API_KEY
 from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
 from image_store import store_image, get_image_data_url
+
+# Create the OpenAI client configured for OpenRouter
+openai_client = AsyncOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPEN_ROUTER_API_KEY,
+)
 
 current_voice = DEFAULT_VOICE
 
@@ -20,8 +27,8 @@ def _sanitize_args_for_display(args: dict) -> dict:
     """Sanitize arguments for terminal display by truncating base64 data."""
     sanitized_args = {}
     for key, value in args.items():
-        if isinstance(value, str) and len(value) > 100:
-            sanitized_args[key] = value[:50] + "...[truncated]"
+        if isinstance(value, str) and len(value) > 250:
+            sanitized_args[key] = value[:250] + "...[truncated]"
         else:
             sanitized_args[key] = value
     return sanitized_args
@@ -213,6 +220,9 @@ async def create_memory(args: dict, ws) -> dict:
 
 async def describe_current_image(args: dict, ws) -> dict:
     """Describe the image currently displayed to the user using a VLM."""
+    # Get the optional focus parameter from the user's request
+    focus = args.get("focus", "")
+
     # Access the session state from the websocket
     current_image_id = getattr(ws, "current_image_id", None)
 
@@ -254,7 +264,7 @@ async def describe_current_image(args: dict, ws) -> dict:
 
         # Create new data URL with JPEG MIME type
         image_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
-        logging.debug(f"Image converted to JPEG format successfully")
+        logging.debug("Image converted to JPEG format successfully")
 
     except Exception as e:
         logging.error(f"Failed to convert image to JPEG: {e}")
@@ -262,74 +272,54 @@ async def describe_current_image(args: dict, ws) -> dict:
 
     logging.debug(f"Attempting to describe image with ID: {current_image_id}")
 
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        # Define the HTTP referer to be used for provider tracking
-        "HTTP-Referer": "https://www.roscommon.systems/",
-        "X-Title": "LimaAI",
-    }
-
-    payload = {
-        "model": "meta-llama/llama-4-maverick",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Please provide a detailed, extended description of this image. Describe the scene, subjects, colors, composition, style, mood, and any notable details."
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image_data_url
-                        }
-                    }
-                ]
-            }
-        ],
-        "stream": False,
-    }
-
-    logging.debug(f"Sending request to OpenRouter for image description")
+    # Build the prompt based on whether a specific focus was requested
+    if focus:
+        description_prompt = f"The user is asking specifically about: {focus}. Please focus your description on this aspect. If applicable, describe this area or subject in detail, including relevant context from the rest of the image."
+    else:
+        description_prompt = "Please provide a detailed, extended description of this image. Describe the scene, subjects, colors, composition, style, mood, and any notable details."
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        logging.debug(f"Response received with status: {response.status_code}")
-        response.raise_for_status()
-        result = response.json()
-        logging.debug(f"Response JSON parsed successfully")
+        response = await openai_client.chat.completions.create(
+            model="meta-llama/llama-4-maverick",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": description_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_data_url
+                            }
+                        }
+                    ]
+                }
+            ],
+            extra_headers={
+                "HTTP-Referer": "https://www.roscommon.systems/",
+                "X-Title": "LimaAI",
+            },
+            timeout=30,
+        )
 
-        choices = result.get("choices", [])
-        if not choices:
-            logging.warning("No choices returned from VLM")
-            return {"error": "No response from VLM"}
+        logging.debug(f"Response received from OpenRouter")
 
-        message = choices[0].get("message", {})
-        description = message.get("content", "")
+        description = response.choices[0].message.content
 
         if not description:
             logging.warning("Empty content received from VLM")
             return {"error": "Empty description received from VLM"}
 
-        logging.info(f"Image description generated successfully")
+        logging.info("Image description generated successfully")
         return {
             "status": "success",
             "description": description,
             "image_id": current_image_id,
         }
 
-    except requests.exceptions.Timeout:
-        logging.error("Image description request timed out")
-        return {"error": "Image description timed out (30s)"}
-    except requests.exceptions.HTTPError as e:
-        logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:500]}")
-        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
-    except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse JSON response: {e}")
-        return {"error": f"Invalid JSON response from API"}
     except Exception as e:
         logging.error(f"describe_current_image failed: {e}", exc_info=True)
         return {"error": str(e)}
