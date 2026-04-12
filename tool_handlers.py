@@ -1,9 +1,14 @@
+import base64
 import datetime
 import json
 import logging
 import os
+import re
+import requests
+from datetime import datetime as dt
 
-from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS
+from env import OPEN_ROUTER_API_KEY
+from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, GENERATED_IMAGES_DIR, IMAGE_ASPECT_RATIO, IMAGE_SIZE
 
 current_voice = DEFAULT_VOICE
 
@@ -113,6 +118,75 @@ async def code_information(args: dict, ws) -> dict:
         return {"error": str(e)}
 
 
+async def open_router_generate_image(args: dict, ws) -> dict:
+    prompt = args.get("prompt", "")
+    if not OPEN_ROUTER_API_KEY:
+        return {"error": "OPEN_ROUTER_API_KEY is not configured in .env"}
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": "google/gemini-2.5-flash-image",
+        "messages": [{"role": "user", "content": prompt}],
+        "modalities": ["image", "text"],
+        "image_config": {
+            "aspect_ratio": IMAGE_ASPECT_RATIO,
+            "image_size": IMAGE_SIZE,
+        },
+        "stream": False,
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        result = response.json()
+
+        choices = result.get("choices", [])
+        if not choices:
+            return {"error": "No choices returned from API"}
+
+        message = choices[0].get("message", {})
+        images = message.get("images", [])
+        if not images:
+            return {"error": "No images returned. Model may not have generated an image for this prompt."}
+
+        os.makedirs(GENERATED_IMAGES_DIR, exist_ok=True)
+        saved_files = []
+
+        for i, img in enumerate(images):
+            data_url = img.get("image_url", {}).get("url", "")
+            match = re.match(r"data:image/(\w+);base64,(.+)", data_url, re.DOTALL)
+            if not match:
+                logging.warning(f"Unexpected image data format for image {i}")
+                continue
+            ext = match.group(1)
+            raw = base64.b64decode(match.group(2))
+
+            timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{timestamp}_{i}.{ext}" if len(images) > 1 else f"{timestamp}.{ext}"
+            filepath = os.path.join(GENERATED_IMAGES_DIR, filename)
+            with open(filepath, "wb") as f:
+                f.write(raw)
+            saved_files.append(filename)
+            logging.info(f"Saved generated image: {filepath}")
+
+        if not saved_files:
+            return {"error": "Failed to decode or save any images"}
+
+        return {"status": "saved", "files": saved_files, "directory": GENERATED_IMAGES_DIR}
+
+    except requests.exceptions.Timeout:
+        return {"error": "Image generation timed out (60s)"}
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        logging.error(f"open_router_generate_image failed: {e}")
+        return {"error": str(e)}
+
+
 async def create_memory(args: dict, ws) -> dict:
     topic = args.get("memory_topic", "")
     content = args.get("memory_content", "")
@@ -129,6 +203,7 @@ HANDLERS = {
     "change_voice": change_voice,
     "create_memory": create_memory,
     "code_information": code_information,
+    "open_router_generate_image": open_router_generate_image,
 }
 
 

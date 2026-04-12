@@ -56,6 +56,27 @@ TOOLS = [
     },
     {
         "type": "function",
+        "name": "open_router_generate_image",
+        "description": (
+            "Generate an image from a text description using AI. "
+            "Call this when the user asks you to create, draw, or generate an image. "
+            "The image is saved locally and you will receive the filename."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Detailed description of the image to generate."
+                }
+            },
+            "required": ["prompt"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "type": "function",
         "name": "code_information",
         "description": (
             "Read the source code of a file that makes up this AI agent. "
