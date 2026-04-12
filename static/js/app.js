@@ -32,9 +32,14 @@ preloadSounds();
 
 function playSound(name) {
     const s = sounds[name];
-    if (!s) return;
+    if (!s) {
+        console.log(`[playSound] Sound "${name}" not found`);
+        return;
+    }
     const clone = s.cloneNode();
-    clone.play().catch(() => {});
+    clone.play()
+        .then(() => console.log(`[playSound] Playing sound "${name}"`))
+        .catch((err) => console.log(`[playSound] Failed to play sound "${name}": ${err}`));
 }
 
 function startWaitingLoop() {
@@ -185,12 +190,14 @@ function connectWS() {
     ws.onclose = () => {
         if (state === "active") {
             setStatus("Connection lost. Click logo to reconnect.");
+            playSound("error");
             setState("idle");
         }
     };
 
     ws.onerror = () => {
         setStatus("Connection error. Click logo to retry.");
+        playSound("error");
         setState("idle");
     };
 }
