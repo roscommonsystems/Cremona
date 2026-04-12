@@ -13,11 +13,9 @@ TOOLS = [
         "type": "function",
         "name": "get_time",
         "description": "Get the current time and date.",
-        "strict": True,
         "parameters": {
             "type": "object",
-            "properties": {},
-            "additionalProperties": False
+            "properties": {}
         }
     },
     {
@@ -29,7 +27,6 @@ TOOLS = [
             "(e.g. 'remember I prefer concise answers', 'I work in finance'). "
             "Memories are loaded on startup and injected into your system prompt."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -42,8 +39,7 @@ TOOLS = [
                     "description": "The actual information to remember (e.g. 'user prefers concise responses')."
                 }
             },
-            "required": ["memory_topic", "memory_content"],
-            "additionalProperties": False
+            "required": ["memory_topic", "memory_content"]
         }
     },
     {
@@ -53,7 +49,6 @@ TOOLS = [
             f"Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
             f"Pick the voice that best matches the user's request based on these descriptions: {_voice_desc_str}."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -63,8 +58,7 @@ TOOLS = [
                     "enum": VOICE_LIST
                 }
             },
-            "required": ["voice"],
-            "additionalProperties": False
+            "required": ["voice"]
         }
     },
     {
@@ -75,7 +69,6 @@ TOOLS = [
             "Call this when the user asks you to create, draw, or generate an image. "
             "The image is saved locally and you will receive the filename."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -84,8 +77,7 @@ TOOLS = [
                     "description": "Detailed description of the image to generate."
                 }
             },
-            "required": ["prompt"],
-            "additionalProperties": False
+            "required": ["prompt"]
         }
     },
     {
@@ -97,7 +89,6 @@ TOOLS = [
             "Available files: main.py (session/WebSocket logic), tools.py (tool schemas), "
             "tool_handlers.py (tool implementations), globals.py (constants/config), env.py (env vars)."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -107,8 +98,7 @@ TOOLS = [
                     "enum": ["main.py", "tools.py", "tool_handlers.py", "image_store.py", "globals.py", "env.py"]
                 }
             },
-            "required": ["file"],
-            "additionalProperties": False
+            "required": ["file"]
         }
     },
     {
@@ -123,7 +113,6 @@ TOOLS = [
             "If the user asks about a specific area or aspect (e.g. 'left side', 'the person', 'the building'), "
             "provide that as the focus parameter."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -132,7 +121,7 @@ TOOLS = [
                     "description": "Optional specific area or aspect to focus on (e.g. 'left side', 'the person', 'the background'). If not provided, describe the entire image."
                 }
             },
-            "additionalProperties": False
+            "required": []
         }
     },
     {
@@ -145,7 +134,6 @@ TOOLS = [
             "Send the current image to the Gemini model along with the user's specific edit request. "
             "Returns the edited image which will be displayed to the user."
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -154,8 +142,7 @@ TOOLS = [
                     "description": "Description of the edit or modification to make to the current image."
                 }
             },
-            "required": ["edit_request"],
-            "additionalProperties": False
+            "required": ["edit_request"]
         }
     },
 ]

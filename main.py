@@ -134,7 +134,14 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                     agent_script_buffer = ""
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
-                    pending_tools.clear()
+                    if pending_tools:
+                        for tool in pending_tools:
+                            await ws.send(json.dumps({
+                                "type": "tool.result",
+                                "call_id": tool["call_id"],
+                                "result": json.dumps(tool["result"]),
+                            }))
+                        pending_tools.clear()
                     if waiting_sound is not None:
                         await waiting_sound.__aexit__(None, None, None)
                         waiting_sound = None

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import datetime
 import json
@@ -150,8 +151,6 @@ def build_system_prompt(memory_str: str, voice: str) -> str:
     voice_desc = VOICE_DESCRIPTIONS.get(voice, voice)
     base = (
         "You are a voice assistant. Keep responses to 1-2 short sentences. "
-        "When you call a tool, always begin your spoken reply with the tool name "
-        "(replace underscores with spaces, e.g. 'create memory: Got it, I'll remember that.'). "
         f"Your current voice is {voice} ({voice_desc})."
     )
     if memory_str and memory_str != "No stored memories.":
@@ -202,7 +201,9 @@ async def generate_image(args: dict, ws) -> dict:
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=45)
+        response = await asyncio.to_thread(
+            requests.post, url, headers=headers, json=payload, timeout=45
+        )
         response.raise_for_status()
         result = response.json()
 
@@ -379,7 +380,9 @@ async def edit_image(args: dict, ws) -> dict:
     logging.debug("Sending request to OpenRouter for image editing")
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=45)
+        response = await asyncio.to_thread(
+            requests.post, url, headers=headers, json=payload, timeout=45
+        )
         logging.debug(f"Response received with status: {response.status_code}")
         response.raise_for_status()
         result = response.json()

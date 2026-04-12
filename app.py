@@ -149,7 +149,14 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     last_agent_text = ""
                     agent_script_buffer = ""
                     await _send_to_browser(browser_ws, {"type": "reply.interrupted"})
-                    pending_tools.clear()
+                    if pending_tools:
+                        for tool in pending_tools:
+                            await aai_ws.send(json.dumps({
+                                "type": "tool.result",
+                                "call_id": tool["call_id"],
+                                "result": json.dumps(tool["result"]),
+                            }))
+                        pending_tools.clear()
                 else:
                     if last_agent_text:
                         print(f"\rAgent: {last_agent_text}      ")
