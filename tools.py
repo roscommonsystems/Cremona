@@ -111,4 +111,26 @@ TOOLS = [
             "additionalProperties": False
         }
     },
+    {
+        "type": "function",
+        "name": "edit_image",
+        "description": (
+            "Edit the image currently displayed to the user. "
+            "Call this when the user asks you to modify, edit, or change the current image. "
+            "Send the current image to the Gemini model along with the user's specific edit request. "
+            "Returns the edited image which will be displayed to the user."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "edit_request": {
+                    "type": "string",
+                    "description": "Description of the edit or modification to make to the current image."
+                }
+            },
+            "required": ["edit_request"],
+            "additionalProperties": False
+        }
+    },
 ]

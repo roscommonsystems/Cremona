@@ -335,6 +335,146 @@ async def describe_current_image(args: dict, ws) -> dict:
         return {"error": str(e)}
 
 
+async def edit_image(args: dict, ws) -> dict:
+    """Edit the currently displayed image using Gemini's image generation model."""
+    edit_request = args.get("edit_request", "")
+
+    if not edit_request:
+        return {"error": "No edit request provided."}
+
+    # Access the session state from the websocket
+    current_image_id = getattr(ws, "current_image_id", None)
+
+    if not current_image_id:
+        return {"error": "No image is currently displayed. Please create an image first."}
+
+    # Get the image data URL from the image store
+    image_data_url = get_image_data_url(current_image_id)
+
+    if not image_data_url:
+        return {"error": "Could not retrieve the current image. It may have expired."}
+
+    if not OPEN_ROUTER_API_KEY:
+        return {"error": "OPEN_ROUTER_API_KEY is not configured"}
+
+    # Convert image to JPEG format for better compatibility with Gemini
+    try:
+        # Extract base64 data from the data URL
+        if "," not in image_data_url:
+            logging.error(f"Invalid data URL format for image {current_image_id}")
+            return {"error": "Invalid image data format"}
+
+        header, encoded = image_data_url.split(",", 1)
+        image_bytes = base64.b64decode(encoded)
+
+        # Open the image and convert to JPEG
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Convert to RGB if necessary (for PNG with transparency)
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Save as JPEG
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        jpeg_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
+
+        # Create new data URL with JPEG MIME type
+        image_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
+        logging.debug(f"Image converted to JPEG format successfully")
+
+    except Exception as e:
+        logging.error(f"Failed to convert image to JPEG: {e}")
+        return {"error": f"Failed to process image: {str(e)}"}
+
+    logging.debug(f"Attempting to edit image with ID: {current_image_id}")
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": "google/gemini-2.5-flash-image",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": edit_request
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_data_url
+                        }
+                    }
+                ]
+            }
+        ],
+        "modalities": ["image", "text"],
+        "image_config": {
+            "aspect_ratio": IMAGE_ASPECT_RATIO,
+            "image_size": IMAGE_SIZE,
+        },
+        "stream": False,
+    }
+
+    logging.debug(f"Sending request to OpenRouter for image editing")
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        logging.debug(f"Response received with status: {response.status_code}")
+        response.raise_for_status()
+        result = response.json()
+        logging.debug(f"Response JSON parsed successfully")
+
+        choices = result.get("choices", [])
+        if not choices:
+            return {"error": "No choices returned from API"}
+
+        message = choices[0].get("message", {})
+        images = message.get("images", [])
+        if not images:
+            return {"error": "No images returned. Model may not have generated an image for this request."}
+
+        # Store images in the image store and collect IDs for reference
+        image_ids = []
+        image_count = 0
+        for img in images:
+            data_url = img.get("image_url", {}).get("url", "")
+            if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
+                image_id = store_image(data_url, edit_request)
+                image_ids.append(image_id)
+                image_count = image_count + 1
+            else:
+                logging.warning(f"Unexpected image data format for image")
+
+        if image_count == 0:
+            return {"error": "Failed to decode any images"}
+
+        # Return image IDs for retrieval, NOT the full base64 data
+        # The full image data is retrieved by app.py and sent to the browser separately
+        return {
+            "status": "edited",
+            "image_ids": image_ids,
+            "count": image_count,
+            "edit_request": edit_request,
+        }
+
+    except requests.exceptions.Timeout:
+        logging.error("Image editing request timed out")
+        return {"error": "Image editing timed out (60s)"}
+    except requests.exceptions.HTTPError as e:
+        logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:500]}")
+        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        logging.error(f"edit_image failed: {e}", exc_info=True)
+        return {"error": str(e)}
+
+
 HANDLERS = {
     "get_time": get_time,
     "change_voice": change_voice,
@@ -342,6 +482,7 @@ HANDLERS = {
     "code_information": code_information,
     "generate_image": generate_image,
     "describe_current_image": describe_current_image,
+    "edit_image": edit_image,
 }
 
 
