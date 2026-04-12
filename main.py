@@ -6,6 +6,7 @@
 import asyncio
 import base64
 import json
+import logging
 
 import sounddevice as sd
 import websockets
@@ -13,6 +14,9 @@ import numpy as np
 
 from env import *
 from globals import *
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 from tools import TOOLS
 from tool_handlers import execute_tool, push_system_prompt
 from audio_alerts import play_sound, WaitingSound
@@ -187,51 +191,90 @@ async def main():
 
     attempt = 0
 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
-                        dtype=DTYPE, callback=mic_callback), \
-         sd.OutputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
-                         dtype=DTYPE) as speaker:
+    try:
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
+                            dtype=DTYPE, callback=mic_callback), \
+             sd.OutputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
+                             dtype=DTYPE) as speaker:
+            while attempt <= MAX_RETRIES:
+                # Reset shared state before each connection attempt
+                session_ready.clear()
+                timed_out = [False]
+                while not mic_queue.empty():
+                    mic_queue.get_nowait()
 
-        while attempt <= MAX_RETRIES:
-            # Reset shared state before each connection attempt
-            session_ready.clear()
-            timed_out = [False]
-            while not mic_queue.empty():
-                mic_queue.get_nowait()
+                # Clear any stale audio in the speaker buffer on reconnect
+                if attempt > 0:
+                    speaker.abort()
+                    speaker.start()
 
-            # Clear any stale audio in the speaker buffer on reconnect
-            if attempt > 0:
-                speaker.abort()
-                speaker.start()
-
-            try:
-                async with websockets.connect(URL, additional_headers=headers) as ws:
-                    await run_session(ws, speaker, mic_queue, session_ready, timed_out)
-                if timed_out[0]:
-                    print("Session ended due to inactivity.")
-                    break  # inactivity timeout — do not reconnect
-                break  # run_session returned normally — clean exit
-
-            except asyncio.CancelledError:
-                print("\nInterrupted. Exiting.")
-                break
-
-            except (websockets.exceptions.ConnectionClosed, OSError) as e:
-                attempt += 1
-                await play_sound("error")
-                if attempt > MAX_RETRIES:
-                    print(f"Connection lost ({e}). Max retries ({MAX_RETRIES}) reached. Exiting.")
-                    break
-                delay = min(BACKOFF_BASE * (2 ** (attempt - 1)), BACKOFF_CAP)
-                print(f"Connection lost ({e}). Retry {attempt}/{MAX_RETRIES} in {delay:.0f}s...")
                 try:
-                    await asyncio.sleep(delay)
+                    async with websockets.connect(URL, additional_headers=headers) as ws:
+                        await run_session(ws, speaker, mic_queue, session_ready, timed_out)
+                    if timed_out[0]:
+                        print("Session ended due to inactivity.")
+                        break  # inactivity timeout — do not reconnect
+                    break  # run_session returned normally — clean exit
+
                 except asyncio.CancelledError:
-                    print("\nInterrupted during backoff. Exiting.")
+                    print("\nInterrupted. Exiting.")
                     break
+
+                except (websockets.exceptions.ConnectionClosed, OSError) as e:
+                    attempt += 1
+                    await play_sound("error")
+                    if attempt > MAX_RETRIES:
+                        print(f"Connection lost ({e}). Max retries ({MAX_RETRIES}) reached. Exiting.")
+                        break
+                    delay = min(BACKOFF_BASE * (2 ** (attempt - 1)), BACKOFF_CAP)
+                    print(f"Connection lost ({e}). Retry {attempt}/{MAX_RETRIES} in {delay:.0f}s...")
+                    try:
+                        await asyncio.sleep(delay)
+                    except asyncio.CancelledError:
+                        print("\nInterrupted during backoff. Exiting.")
+                        break
+
+                except websockets.exceptions.WebSocketException as e:
+                    attempt += 1
+                    log.error(f"WebSocket error: {e}", exc_info=True)
+                    await play_sound("error")
+                    if attempt > MAX_RETRIES:
+                        print(f"WebSocket error ({e}). Max retries ({MAX_RETRIES}) reached. Exiting.")
+                        break
+                    delay = min(BACKOFF_BASE * (2 ** (attempt - 1)), BACKOFF_CAP)
+                    print(f"WebSocket error ({e}). Retry {attempt}/{MAX_RETRIES} in {delay:.0f}s...")
+                    try:
+                        await asyncio.sleep(delay)
+                    except asyncio.CancelledError:
+                        print("\nInterrupted during backoff. Exiting.")
+                        break
+
+                except Exception as e:
+                    attempt += 1
+                    log.error(f"Unexpected error in main loop: {e}", exc_info=True)
+                    await play_sound("error")
+                    if attempt > MAX_RETRIES:
+                        print(f"Unexpected error ({e}). Max retries ({MAX_RETRIES}) reached. Exiting.")
+                        break
+                    delay = min(BACKOFF_BASE * (2 ** (attempt - 1)), BACKOFF_CAP)
+                    print(f"Unexpected error ({e}). Retry {attempt}/{MAX_RETRIES} in {delay:.0f}s...")
+                    try:
+                        await asyncio.sleep(delay)
+                    except asyncio.CancelledError:
+                        print("\nInterrupted during backoff. Exiting.")
+                        break
+
+    except sd.PortAudioError as e:
+        log.error(f"Failed to initialize audio devices: {e}", exc_info=True)
+        print(f"Failed to initialize audio devices: {e}")
+        print("Please check your microphone and speaker are connected and available.")
+        return
 
 
 try:
     asyncio.run(main())
 except KeyboardInterrupt:
     pass
+except Exception as e:
+    log.error(f"Fatal error: {e}", exc_info=True)
+    print(f"\nFatal error: {e}")
