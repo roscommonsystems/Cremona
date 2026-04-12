@@ -4,6 +4,12 @@ URL = "wss://agents.assemblyai.com/v1/realtime"
 # Audio
 SAMPLE_RATE = 24000
 CHANNELS = 1
+DTYPE = "int16"
+
+# Sound file paths for audio alerts
+SOUND_OPEN = "assets/cremona-open.wav"
+SOUND_ERROR = "assets/cremona-error.wav"
+SOUND_WAITING = "assets/cremona-waiting.wav"
 
 # Session
 GREETING = "Hi! How can I help?"
