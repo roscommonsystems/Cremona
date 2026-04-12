@@ -422,8 +422,8 @@ async def edit_image(args: dict, ws) -> dict:
         logging.error("Image editing request timed out")
         return {"error": "Image editing timed out (45s)"}
     except requests.exceptions.HTTPError as e:
-        logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:500]}")
-        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
+        logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:5000]}")
+        return {"error": f"API error {e.response.status_code}: {e.response.text[:2000]}"}
     except Exception as e:
         logging.error(f"edit_image failed: {e}", exc_info=True)
         return {"error": str(e)}
