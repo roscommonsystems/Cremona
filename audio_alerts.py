@@ -51,10 +51,16 @@ class WaitingSound:
     async def __aenter__(self):
         self._stop = asyncio.Event()
         self._task = asyncio.create_task(_loop_sound("waiting", self._stop))
+        await asyncio.sleep(0)  # yield so the sound task actually starts before tool executes
         return self
 
     async def __aexit__(self, *_):
         if self._stop:
             self._stop.set()
         if self._task:
-            await self._task  # wait for current iteration to finish cleanly
+            self._task.cancel()
+            sd.stop()  # immediately stop the sounddevice stream
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass

@@ -444,3 +444,57 @@ async def execute_tool(event: dict, ws) -> dict:
     if "error" in result:
         logging.warning(f"[tool error] {tool_name}: {result['error']}")
     return {"call_id": event.get("call_id", ""), "result": result}
+
+
+if __name__ == "__main__":
+    # Test the describe_current_image function by loading the logo image
+    # and attempting to describe it using the VLM.
+    import asyncio
+
+    LOGO_PATH = "assets/circular_logo_teal.png"
+
+    async def run_test():
+        # Load the logo image and convert to data URL format
+        if not os.path.exists(LOGO_PATH):
+            print(f"Error: Logo file not found at {LOGO_PATH}")
+            return
+
+        try:
+            with open(LOGO_PATH, "rb") as f:
+                image_bytes = f.read()
+
+            # Convert to base64 encoded data URL
+            base64_image = base64.b64encode(image_bytes).decode("utf-8")
+            data_url = f"data:image/png;base64,{base64_image}"
+
+            # Store the image so describe_current_image can retrieve it
+            store_image(data_url, "circular_logo_teal.png")
+            print(f"Stored image from {LOGO_PATH}")
+
+        except Exception as e:
+            print(f"Error loading/storing image: {e}")
+            return
+
+        # Create a mock WebSocket object that does nothing
+        # The describe_current_image function expects a ws argument with a send method
+        class MockWebSocket:
+            async def send(self, message):
+                # Just ignore any websocket messages during testing
+                pass
+
+        mock_ws = MockWebSocket()
+
+        # Call describe_current_image with empty args (no focus)
+        print("\nCalling describe_current_image...")
+        result = await describe_current_image({}, mock_ws)
+
+        # Print the result
+        print("\n--- Result ---")
+        if "error" in result:
+            print(f"Error: {result['error']}")
+        else:
+            print(f"Status: {result.get('status', 'unknown')}")
+            print(f"Description: {result.get('description', 'No description returned')}")
+
+    # Run the async test
+    asyncio.run(run_test())

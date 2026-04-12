@@ -117,6 +117,8 @@ TOOLS = [
         "description": (
             "Provide an extended description of the image currently displayed to the user. "
             "Call this when the user asks you to describe, analyze, or tell them about the current image. "
+            "DO NOT call this when the user wants to modify, edit, zoom, pan, crop, or change the image in any way - "
+            "use edit_image instead for those requests. "
             "Returns a detailed description of the image content. "
             "If the user asks about a specific area or aspect (e.g. 'left side', 'the person', 'the building'), "
             "provide that as the focus parameter."
@@ -138,7 +140,8 @@ TOOLS = [
         "name": "edit_image",
         "description": (
             "Edit the image currently displayed to the user. "
-            "Call this when the user asks you to modify, edit, or change the current image. "
+            "Call this when the user asks you to modify, edit, update, or change the current image. "
+            "Also call this when the user asks for zoom in/out, pan left/right/up/down, or crop operations. "
             "Send the current image to the Gemini model along with the user's specific edit request. "
             "Returns the edited image which will be displayed to the user."
         ),
