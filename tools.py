@@ -1,13 +1,24 @@
 from globals import VOICE_LIST, VOICE_DESCRIPTIONS
 
-_voice_desc_str = ", ".join(f"{v} ({VOICE_DESCRIPTIONS[v]})" for v in VOICE_LIST)
+# Build voice descriptions string using explicit loop for readability
+_voice_description_parts = []
+for voice in VOICE_LIST:
+    description = VOICE_DESCRIPTIONS[voice]
+    formatted_voice = f"{voice} ({description})"
+    _voice_description_parts.append(formatted_voice)
+_voice_desc_str = ", ".join(_voice_description_parts)
 
 TOOLS = [
     {
         "type": "function",
         "name": "get_time",
         "description": "Get the current time and date.",
-        "parameters": {"type": "object", "properties": {}}
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False
+        }
     },
     {
         "type": "function",
@@ -39,9 +50,10 @@ TOOLS = [
         "type": "function",
         "name": "change_voice",
         "description": (
-            "Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
+            f"Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
             f"Pick the voice that best matches the user's request based on these descriptions: {_voice_desc_str}."
         ),
+        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -51,7 +63,8 @@ TOOLS = [
                     "enum": VOICE_LIST
                 }
             },
-            "required": ["voice"]
+            "required": ["voice"],
+            "additionalProperties": False
         }
     },
     {
@@ -84,6 +97,7 @@ TOOLS = [
             "Available files: main.py (session/WebSocket logic), tools.py (tool schemas), "
             "tool_handlers.py (tool implementations), globals.py (constants/config), env.py (env vars)."
         ),
+        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -107,6 +121,7 @@ TOOLS = [
             "If the user asks about a specific area or aspect (e.g. 'left side', 'the person', 'the building'), "
             "provide that as the focus parameter."
         ),
+        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
