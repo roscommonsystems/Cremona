@@ -1,3 +1,8 @@
+# This is the main file to run for the web app
+# Run locally with
+# source .venv/Scripts/activate
+# hypercorn app:app --bind 0.0.0.0:8080
+
 import asyncio
 import json
 import logging
@@ -10,6 +15,7 @@ from globals import (
     URL, GREETING, DEFAULT_VOICE, MAX_RETRIES, BACKOFF_BASE, BACKOFF_CAP,
     INACTIVITY_TIMEOUT,
 )
+from image_store import get_image_data_url
 from tools import TOOLS
 from tool_handlers import execute_tool, push_system_prompt
 
@@ -104,11 +110,13 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     waiting_sound_active = True
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "start"})
                 tool_result = await execute_tool(event, aai_ws)
-                # Check if generate_image produced images — send them to the browser
+                # Check if generate_image produced images — retrieve from store and send to browser
                 result_data = tool_result.get("result", {})
-                if isinstance(result_data, dict) and result_data.get("images"):
-                    for img_data_url in result_data["images"]:
-                        await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
+                if isinstance(result_data, dict) and result_data.get("image_ids"):
+                    for image_id in result_data["image_ids"]:
+                        img_data_url = get_image_data_url(image_id)
+                        if img_data_url:
+                            await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
                 pending_tools.append(tool_result)
 
             elif t == "reply.audio":

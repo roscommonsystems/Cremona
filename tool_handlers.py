@@ -9,6 +9,7 @@ from datetime import datetime as dt
 
 from config import OPEN_ROUTER_API_KEY
 from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
+from image_store import store_image
 
 current_voice = DEFAULT_VOICE
 
@@ -153,18 +154,29 @@ async def generate_image(args: dict, ws) -> dict:
         if not images:
             return {"error": "No images returned. Model may not have generated an image for this prompt."}
 
-        data_urls = []
-        for i, img in enumerate(images):
+        # Store images in the image store and collect IDs for reference
+        image_ids = []
+        image_count = 0
+        for img in images:
             data_url = img.get("image_url", {}).get("url", "")
             if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
-                data_urls.append(data_url)
+                image_id = store_image(data_url, prompt)
+                image_ids.append(image_id)
+                image_count = image_count + 1
             else:
-                logging.warning(f"Unexpected image data format for image {i}")
+                logging.warning(f"Unexpected image data format for image")
 
-        if not data_urls:
+        if image_count == 0:
             return {"error": "Failed to decode any images"}
 
-        return {"status": "generated", "images": data_urls}
+        # Return image IDs for retrieval, NOT the full base64 data
+        # The full image data is retrieved by app.py and sent to the browser separately
+        return {
+            "status": "generated",
+            "image_ids": image_ids,
+            "count": image_count,
+            "prompt": prompt,
+        }
 
     except requests.exceptions.Timeout:
         return {"error": "Image generation timed out (60s)"}

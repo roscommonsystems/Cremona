@@ -1,7 +1,4 @@
-# Run locally with
-# source .venv/Scripts/activate
-# hypercorn app:app --bind 0.0.0.0:8080
-
+# Running this file doesnt open the server, just terminal interaction.
 
 import asyncio
 import base64
