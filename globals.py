@@ -22,6 +22,13 @@ INACTIVITY_TIMEOUT = 15 * 60  # seconds
 MEMORIES_FILE_PATH = "data/memories.json"
 MAX_MEMORIES = 10
 
+# Audio alerts
+import pathlib
+_ASSETS = pathlib.Path(__file__).parent / "assets"
+SOUND_OPEN    = str(_ASSETS / "cremona-open.wav")
+SOUND_ERROR   = str(_ASSETS / "cremona-error.wav")
+SOUND_WAITING = str(_ASSETS / "cremona-waiting.wav")
+
 # Voices
 VOICE_DESCRIPTIONS = {
     "alexei": "Russian male",

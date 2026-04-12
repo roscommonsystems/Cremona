@@ -10,6 +10,7 @@ from env import *
 from globals import *
 from tools import TOOLS
 from tool_handlers import execute_tool, push_system_prompt
+from audio_alerts import play_sound, WaitingSound
 
 
 async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
@@ -28,6 +29,7 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
     await push_system_prompt(ws)
 
     pending_tools: list[dict] = []
+    waiting_sound: WaitingSound | None = None
     agent_script_buffer = ""
     last_agent_text = ""
     last_activity = [asyncio.get_event_loop().time()]
@@ -75,6 +77,7 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
             if t == "session.ready":
                 print(f"Ready — start speaking  (session_id={event.get('session_id', '')})")
                 session_ready.set()
+                asyncio.create_task(play_sound("open"))
 
             elif t == "session.updated":
                 print("Session updated.")
@@ -107,6 +110,9 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
 
             elif t == "tool.call":
                 # Accumulate tool results — send them after reply.done
+                if waiting_sound is None:
+                    waiting_sound = WaitingSound()
+                    await waiting_sound.__aenter__()
                 pending_tools.append(await execute_tool(event, ws))
 
             elif t == "reply.audio":
@@ -123,6 +129,9 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
                     pending_tools.clear()
+                    if waiting_sound is not None:
+                        await waiting_sound.__aexit__(None, None, None)
+                        waiting_sound = None
                 else:
                     if last_agent_text:
                         print(f"\rAgent: {last_agent_text}      ")
@@ -137,10 +146,14 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                                 "result": json.dumps(tool["result"]),
                             }))
                         pending_tools.clear()
+                        if waiting_sound is not None:
+                            await waiting_sound.__aexit__(None, None, None)
+                            waiting_sound = None
 
             elif t in ("error", "session.error"):
                 print(f"Error: {event.get('message')}")
                 if t == "error":
+                    await play_sound("error")
                     break
 
     except asyncio.CancelledError:
@@ -200,6 +213,7 @@ async def main():
 
             except (websockets.exceptions.ConnectionClosed, OSError) as e:
                 attempt += 1
+                await play_sound("error")
                 if attempt > MAX_RETRIES:
                     print(f"Connection lost ({e}). Max retries ({MAX_RETRIES}) reached. Exiting.")
                     break
