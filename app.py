@@ -55,6 +55,9 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
     pending_tools: list[dict] = []
     waiting_sound_active = False
     last_activity = asyncio.get_event_loop().time()
+    user_script_buffer = ""
+    agent_script_buffer = ""
+    last_agent_text = ""
 
     async def inactivity_watchdog():
         nonlocal last_activity
@@ -75,35 +78,52 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 
             if t == "session.ready":
                 session_ready.set()
-                await _send_to_browser(browser_ws, {"type": "session.ready", "session_id": event.get("session_id", "")})
+                session_id = event.get("session_id", "")
+                print(f"Ready — start speaking  (session_id={session_id})")
+                await _send_to_browser(browser_ws, {"type": "session.ready", "session_id": session_id})
                 await _send_to_browser(browser_ws, {"type": "sound", "name": "open"})
 
             elif t == "session.updated":
-                pass
+                print("Session updated.")
 
             elif t == "input.speech.started":
                 last_activity = asyncio.get_event_loop().time()
+                print("\rListening...                    ")
                 await _send_to_browser(browser_ws, {"type": "input.speech.started"})
 
             elif t == "input.speech.stopped":
+                print("Processing...")
                 await _send_to_browser(browser_ws, {"type": "input.speech.stopped"})
 
             elif t == "transcript.user.delta":
                 last_activity = asyncio.get_event_loop().time()
-                await _send_to_browser(browser_ws, {"type": "transcript.user.delta", "text": event.get("text", "")})
+                user_text = event.get("text", "")
+                user_script_buffer = user_text
+                print(f"\rYou: {user_text}...", end="", flush=True)
+                await _send_to_browser(browser_ws, {"type": "transcript.user.delta", "text": user_text})
 
             elif t == "transcript.user":
                 last_activity = asyncio.get_event_loop().time()
-                await _send_to_browser(browser_ws, {"type": "transcript.user", "text": event.get("text", "")})
+                user_text = event.get("text", "")
+                user_script_buffer = ""
+                print(f"\rYou: {user_text}      ")
+                await _send_to_browser(browser_ws, {"type": "transcript.user", "text": user_text})
 
             elif t == "reply.started":
+                print("Agent speaking...")
                 await _send_to_browser(browser_ws, {"type": "reply.started"})
 
             elif t == "transcript.agent.delta":
-                await _send_to_browser(browser_ws, {"type": "transcript.agent.delta", "text": event.get("text", "")})
+                agent_text = event.get("text", "")
+                agent_script_buffer = agent_script_buffer + agent_text
+                print(f"\rAgent: {agent_script_buffer}...", end="", flush=True)
+                await _send_to_browser(browser_ws, {"type": "transcript.agent.delta", "text": agent_text})
 
             elif t == "transcript.agent":
-                await _send_to_browser(browser_ws, {"type": "transcript.agent", "text": event.get("text", "")})
+                agent_text = event.get("text", "")
+                last_agent_text = agent_text
+                agent_script_buffer = ""
+                await _send_to_browser(browser_ws, {"type": "transcript.agent", "text": agent_text})
 
             elif t == "tool.call":
                 if not waiting_sound_active:
@@ -124,9 +144,18 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 
             elif t == "reply.done":
                 if event.get("status") == "interrupted":
+                    agent_text = last_agent_text or agent_script_buffer
+                    if agent_text:
+                        print(f"\rAgent (interrupted): {agent_text}      ")
+                    last_agent_text = ""
+                    agent_script_buffer = ""
                     await _send_to_browser(browser_ws, {"type": "reply.interrupted"})
                     pending_tools.clear()
                 else:
+                    if last_agent_text:
+                        print(f"\rAgent: {last_agent_text}      ")
+                    last_agent_text = ""
+                    agent_script_buffer = ""
                     if pending_tools:
                         for tool in pending_tools:
                             await aai_ws.send(json.dumps({
@@ -140,6 +169,7 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "stop"})
 
             elif t in ("error", "session.error"):
+                print(f"Error: {event.get('message')}")
                 log.error(f"AssemblyAI error: {event.get('message')}")
                 await _send_to_browser(browser_ws, {"type": "error", "message": event.get("message", "Unknown error")})
                 await _send_to_browser(browser_ws, {"type": "sound", "name": "error"})
