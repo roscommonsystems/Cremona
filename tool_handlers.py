@@ -6,7 +6,6 @@ import os
 import re
 import requests
 import io
-from datetime import datetime as dt
 from PIL import Image
 from openai import AsyncOpenAI
 
@@ -32,6 +31,48 @@ def _sanitize_args_for_display(args: dict) -> dict:
         else:
             sanitized_args[key] = value
     return sanitized_args
+
+
+def _convert_image_to_jpeg(image_data_url: str) -> tuple[str | None, str | None]:
+    """
+    Convert an image data URL to JPEG format.
+
+    Args:
+        image_data_url: The source data URL (e.g., "data:image/png;base64,...")
+
+    Returns:
+        A tuple of (jpeg_data_url, error_message).
+        On success, jpeg_data_url is the converted data URL and error_message is None.
+        On failure, jpeg_data_url is None and error_message contains the reason.
+    """
+    if "," not in image_data_url:
+        logging.error("Invalid data URL format for current image")
+        return None, "Invalid image data format"
+
+    try:
+        _, encoded = image_data_url.split(",", 1)
+        image_bytes = base64.b64decode(encoded)
+
+        # Open the image and convert to JPEG
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Convert to RGB if necessary (for PNG with transparency)
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Save as JPEG
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        jpeg_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
+
+        # Create new data URL with JPEG MIME type
+        jpeg_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
+        logging.debug("Image converted to JPEG format successfully")
+        return jpeg_data_url, None
+
+    except Exception as e:
+        logging.error(f"Failed to convert image to JPEG: {e}")
+        return None, f"Failed to process image: {str(e)}"
 
 
 async def get_time(args: dict, ws) -> dict:
@@ -222,35 +263,9 @@ async def describe_current_image(args: dict, ws) -> dict:
 
     # Convert image to JPEG format for better compatibility with Llama 4
     # The Gemini-generated image may be PNG, but many models expect JPEG
-    try:
-        # Extract base64 data from the data URL
-        # Data URL format: data:image/{format};base64,{base64_data}
-        if "," not in image_data_url:
-            logging.error("Invalid data URL format for current image")
-            return {"error": "Invalid image data format"}
-
-        header, encoded = image_data_url.split(",", 1)
-        image_bytes = base64.b64decode(encoded)
-
-        # Open the image and convert to JPEG
-        image = Image.open(io.BytesIO(image_bytes))
-
-        # Convert to RGB if necessary (for PNG with transparency)
-        if image.mode in ("RGBA", "P"):
-            image = image.convert("RGB")
-
-        # Save as JPEG
-        output = io.BytesIO()
-        image.save(output, format="JPEG", quality=95)
-        jpeg_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
-
-        # Create new data URL with JPEG MIME type
-        image_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
-        logging.debug("Image converted to JPEG format successfully")
-
-    except Exception as e:
-        logging.error(f"Failed to convert image to JPEG: {e}")
-        return {"error": f"Failed to process image: {str(e)}"}
+    image_data_url, error_message = _convert_image_to_jpeg(image_data_url)
+    if error_message:
+        return {"error": error_message}
 
     logging.debug("Attempting to describe current image")
 
@@ -322,34 +337,9 @@ async def edit_image(args: dict, ws) -> dict:
         return {"error": "OPEN_ROUTER_API_KEY is not configured"}
 
     # Convert image to JPEG format for better compatibility with Gemini
-    try:
-        # Extract base64 data from the data URL
-        if "," not in image_data_url:
-            logging.error("Invalid data URL format for current image")
-            return {"error": "Invalid image data format"}
-
-        header, encoded = image_data_url.split(",", 1)
-        image_bytes = base64.b64decode(encoded)
-
-        # Open the image and convert to JPEG
-        image = Image.open(io.BytesIO(image_bytes))
-
-        # Convert to RGB if necessary (for PNG with transparency)
-        if image.mode in ("RGBA", "P"):
-            image = image.convert("RGB")
-
-        # Save as JPEG
-        output = io.BytesIO()
-        image.save(output, format="JPEG", quality=95)
-        jpeg_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
-
-        # Create new data URL with JPEG MIME type
-        image_data_url = f"data:image/jpeg;base64,{jpeg_base64}"
-        logging.debug("Image converted to JPEG format successfully")
-
-    except Exception as e:
-        logging.error(f"Failed to convert image to JPEG: {e}")
-        return {"error": f"Failed to process image: {str(e)}"}
+    image_data_url, error_message = _convert_image_to_jpeg(image_data_url)
+    if error_message:
+        return {"error": error_message}
 
     logging.debug("Attempting to edit current image")
 

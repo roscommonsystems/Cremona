@@ -56,8 +56,8 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                     await asyncio.sleep(0.4)
                     play_tone(freq=330, duration=0.5)
                     await asyncio.sleep(0.6)
-                except Exception:
-                    pass
+                except Exception as error:
+                    log.error(f"Error playing timeout tones: {error}")
                 await ws.close()
                 return
 

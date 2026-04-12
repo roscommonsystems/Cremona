@@ -38,16 +38,16 @@ async def _forward_browser_to_aai(browser_ws, aai_ws, session_ready):
             msg = json.loads(raw)
             if msg.get("type") == "input.audio" and session_ready.is_set():
                 await aai_ws.send(json.dumps(msg))
-    except Exception:
-        pass
+    except Exception as error:
+        log.error(f"Error forwarding browser to AssemblyAI: {error}")
 
 
 async def _send_to_browser(browser_ws, data):
     """Send a JSON message to the browser WebSocket."""
     try:
         await browser_ws.send(json.dumps(data))
-    except Exception:
-        pass
+    except Exception as error:
+        log.error(f"Error sending to browser WebSocket: {error}")
 
 
 async def _process_aai_events(browser_ws, aai_ws, session_ready):
