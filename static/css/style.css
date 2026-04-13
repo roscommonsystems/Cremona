@@ -125,3 +125,30 @@ body {
 #links a:hover {
     color: #333;
 }
+
+/* Download button — bottom-right, hidden until image is shown */
+#download-btn {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #2abfbf;
+    color: #ffffff;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    transition: background 0.2s, transform 0.15s;
+    z-index: 20;
+}
+
+#download-btn:hover {
+    background: #22a8a8;
+    transform: scale(1.08);
+}
+
+#app.image-shown #download-btn {
+    display: flex;
+}

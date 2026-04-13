@@ -19,6 +19,7 @@ const logo = document.getElementById("logo");
 const appEl = document.getElementById("app");
 const statusEl = document.getElementById("status");
 const generatedImage = document.getElementById("generated-image");
+const downloadBtn = document.getElementById("download-btn");
 
 // ── Preload sounds ─────────────────────────────────────────────────
 function preloadSounds() {
@@ -281,6 +282,7 @@ function handleServerMessage(msg) {
 // ── Image display ──────────────────────────────────────────────────
 function showImage(dataUrl) {
     generatedImage.src = dataUrl;
+    downloadBtn.href = dataUrl;
     appEl.classList.add("image-shown");
 }
 
