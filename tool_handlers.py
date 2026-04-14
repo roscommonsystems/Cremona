@@ -328,6 +328,12 @@ async def describe_current_image(args: dict, ws) -> dict:
         return {"error": str(e)}
 
 
+async def download_image(args: dict, ws) -> dict:
+    if not get_image_data_url():
+        return {"error": "No image is currently displayed."}
+    return {"status": "downloading", "trigger_download": True}
+
+
 async def edit_image(args: dict, ws) -> dict:
     """Edit the currently displayed image using Gemini's image generation model."""
     edit_request = args.get("edit_request", "")
@@ -436,6 +442,7 @@ HANDLERS = {
     "code_information": code_information,
     "generate_image": generate_image,
     "describe_current_image": describe_current_image,
+    "download_image": download_image,
     "edit_image": edit_image,
 }
 

@@ -268,6 +268,10 @@ function handleServerMessage(msg) {
             showImage(msg.data);
             break;
 
+        case "trigger_download":
+            downloadBtn.click();
+            break;
+
         case "session.timeout":
             setStatus("Session timed out due to inactivity.");
             setState("idle");

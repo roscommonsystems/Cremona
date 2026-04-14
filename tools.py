@@ -126,6 +126,19 @@ TOOLS = [
     },
     {
         "type": "function",
+        "name": "download_image",
+        "description": (
+            "Download the image currently displayed to the user. "
+            "Call this when the user asks to save or download the current image. "
+            "Only works when an image is visible on screen."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "type": "function",
         "name": "edit_image",
         "description": (
             "Edit the image currently displayed to the user. "
