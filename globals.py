@@ -61,3 +61,15 @@ IMAGE_ASPECT_RATIO = "1:1"
 # Image size options: "1K" (standard), "2K" (higher), "4K" (highest)
 #   "0.5K" is only supported by google/gemini-3.1-flash-image-preview
 IMAGE_SIZE = "1K"
+
+# Security
+# NOTE: These limits are per-instance. With multiple Cloud Run instances,
+# each instance enforces its own limits independently. Set MAX_CONCURRENT_SESSIONS
+# to (desired_global_cap / max_instances) to control total load.
+# All values can be overridden via environment variables without code changes.
+import os as _os
+MAX_CONCURRENT_SESSIONS = int(_os.environ.get("MAX_CONCURRENT_SESSIONS", "10"))
+MAX_SESSIONS_PER_IP     = int(_os.environ.get("MAX_SESSIONS_PER_IP", "2"))
+MAX_WS_MESSAGE_BYTES    = int(_os.environ.get("MAX_WS_MESSAGE_BYTES", str(512 * 1024)))  # 512KB — ~100s of audio in one frame is abnormal
+WS_RATE_LIMIT_COUNT     = int(_os.environ.get("WS_RATE_LIMIT_COUNT", "5"))
+WS_RATE_LIMIT_WINDOW    = int(_os.environ.get("WS_RATE_LIMIT_WINDOW_SECONDS", "60"))

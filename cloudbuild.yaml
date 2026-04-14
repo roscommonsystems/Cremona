@@ -17,6 +17,7 @@ steps:
       - '--allow-unauthenticated'
       - '--timeout=3600'
       - '--session-affinity'
+      - '--max-instances=3'
       - '--set-env-vars=API_KEY=${_API_KEY},OPEN_ROUTER_API_KEY=${_OPEN_ROUTER_API_KEY}'
 
 substitutions:
