@@ -9,15 +9,16 @@
 </head>
 <body>
     <div id="app">
-        <img id="logo" src="/static/img/circular_logo_teal.png" alt="Cremona" title="Click to start">
+        <img id="logo" src="/static/img/circular_logo_teal.png" alt="Cremona" role="button" tabindex="0" aria-label="Cremona, click to start session">
 
         <div id="image-container">
             <img id="generated-image" src="" alt="">
         </div>
 
-        <a id="download-btn" download="generated-image.png" title="Download image">
+        <a id="download-btn" download="generated-image.png" title="Download image" aria-label="Download generated image">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
@@ -28,8 +29,8 @@
     </div>
 
     <nav id="links">
-        <a href="https://www.roscommon.systems" target="_blank" rel="noopener">return to homepage</a>
-        <a href="https://github.com" target="_blank" rel="noopener">source code</a>
+        <a href="https://www.roscommon.systems" target="_blank" rel="noopener" aria-label="return to homepage (opens in new window)">return to homepage</a>
+        <a href="https://github.com" target="_blank" rel="noopener" aria-label="source code (opens in new window)">source code</a>
     </nav>
 
     <script src="/static/js/app.js" type="module"></script>

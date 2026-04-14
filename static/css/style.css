@@ -37,6 +37,12 @@ body {
     opacity: 0.85;
 }
 
+#logo:focus-visible {
+    outline: 2px solid #2abfbf;
+    outline-offset: 6px;
+    border-radius: 50%;
+}
+
 /* Breathing animation when active */
 #logo.active {
     animation: breathe 3s ease-in-out infinite;
@@ -126,6 +132,12 @@ body {
     color: #333;
 }
 
+#links a:focus-visible {
+    outline: 2px solid #2abfbf;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 /* Download button — bottom-right, hidden until image is shown */
 #download-btn {
     display: none;
@@ -147,6 +159,11 @@ body {
 #download-btn:hover {
     background: #22a8a8;
     transform: scale(1.08);
+}
+
+#download-btn:focus-visible {
+    outline: 2px solid #2abfbf;
+    outline-offset: 3px;
 }
 
 #app.image-shown #download-btn {

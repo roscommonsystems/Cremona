@@ -293,7 +293,7 @@ function setState(newState) {
     if (newState === "idle") {
         logo.src = "/static/img/circular_logo_teal.png";
         logo.classList.remove("active");
-        logo.title = "Click to start";
+        logo.setAttribute("aria-label", "Cremona, click to start session");
         stopMic();
         stopWaitingLoop();
         if (ws) {
@@ -301,16 +301,23 @@ function setState(newState) {
             ws = null;
         }
     } else if (newState === "connecting") {
-        logo.title = "Connecting...";
+        logo.setAttribute("aria-label", "Cremona, connecting\u2026");
         setStatus("Requesting microphone access...");
     } else if (newState === "active") {
         logo.src = "/static/img/circular_logo_orange.png";
         logo.classList.add("active");
-        logo.title = "Session active";
+        logo.setAttribute("aria-label", "Cremona, session active, click to stop");
     }
 }
 
-// ── Click handler ──────────────────────────────────────────────────
+// ── Click / keyboard handler ───────────────────────────────────────
+logo.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        logo.click();
+    }
+});
+
 logo.addEventListener("click", async () => {
     if (state !== "idle") {
         // Click while active — stop session
