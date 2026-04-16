@@ -85,9 +85,13 @@ async def get_time(args: dict, ws) -> dict:
 async def change_voice(args: dict, ws) -> dict:
     global current_voice
     voice = args.get("voice", "")
-    await ws.send(json.dumps({"type": "session.update", "session": {"voice": voice}}))
     current_voice = voice
-    await push_system_prompt(ws)
+    memories = load_memories_from_file()
+    prompt = build_system_prompt(format_memories_for_prompt(memories), current_voice)
+    await ws.send(json.dumps({
+        "type": "session.update",
+        "session": {"voice": voice, "system_prompt": prompt},
+    }))
     return {"success": True, "voice": voice}
 
 
