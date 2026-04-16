@@ -224,7 +224,7 @@ function handleServerMessage(msg) {
             break;
 
         case "transcript.user.delta":
-            userTranscript += msg.text;
+            userTranscript = msg.text;
             setStatus(`You: ${userTranscript}`);
             break;
 

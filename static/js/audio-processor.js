@@ -40,8 +40,8 @@ class PCMProcessor extends AudioWorkletProcessor {
             }
         }
 
-        // Send chunks of ~4096 samples (~170ms at 24 kHz)
-        const chunkSize = 4096;
+        // Send chunks of ~1200 samples (~50ms at 24 kHz, as recommended by AssemblyAI docs)
+        const chunkSize = 1200;
         while (this.buffer.length >= chunkSize) {
             const chunk = this.buffer.splice(0, chunkSize);
             const int16 = new Int16Array(chunk.length);
