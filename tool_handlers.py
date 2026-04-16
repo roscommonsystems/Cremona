@@ -195,12 +195,12 @@ async def generate_image(args: dict, ws) -> dict:
         print(f"[generate_image] Sending request to Grok Imagine ({IMAGE_SIZE}, {IMAGE_ASPECT_RATIO})...")
         _t0 = time.perf_counter()
         response = await grok_client.images.generate(
-            model="grok-2-image",
+            model="grok-imagine-image",
             prompt=prompt,
             response_format="b64_json",
             extra_body={
                 "aspect_ratio": IMAGE_ASPECT_RATIO,
-                "resolution": IMAGE_SIZE.lower(),
+                "resolution": IMAGE_SIZE,
             },
         )
         _elapsed = time.perf_counter() - _t0
@@ -337,7 +337,7 @@ async def edit_image(args: dict, ws) -> dict:
     # The OpenAI SDK images.edit() uses multipart/form-data which xAI does not support.
     # Use a direct JSON POST to /v1/images/edits instead.
     payload = {
-        "model": "grok-2-image",
+        "model": "grok-imagine-image",
         "prompt": edit_request,
         "image": {"url": image_data_url, "type": "image_url"},
         "response_format": "b64_json",

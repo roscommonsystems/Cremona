@@ -3,6 +3,9 @@
 # source .venv/Scripts/activate
 # hypercorn app:app --bind 0.0.0.0:8080
 
+# sofonisba anguissola - cremona, italy
+# Sofonisba Anguissola (also Sophonisba Angussola or Anguisciola; c. 1532 – 16 November 1625) was an Italian Renaissance painter born in Cremona to a relatively poor noble family. She received a well-rounded education
+
 import asyncio
 import json
 import logging
