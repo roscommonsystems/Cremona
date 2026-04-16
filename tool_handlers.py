@@ -339,22 +339,33 @@ async def edit_image(args: dict, ws) -> dict:
     payload = {
         "model": "grok-imagine-image",
         "prompt": edit_request,
-        "image": {"url": image_data_url, "type": "image_url"},
+        "n": 1,
+        "aspect_ratio": IMAGE_ASPECT_RATIO,
+        "resolution": IMAGE_SIZE,
+        "image": {"url": image_data_url},
         "response_format": "b64_json",
     }
 
     try:
-        print(f"[edit_image] Sending request to Grok Imagine...")
-        _t0 = time.perf_counter()
-        response = await asyncio.to_thread(
-            requests.post,
-            "https://api.x.ai/v1/images/edits",
-            headers={"Authorization": f"Bearer {X_AI_API_KEY}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=60,
-        )
-        _elapsed = time.perf_counter() - _t0
-        print(f"[edit_image] Response received in {_elapsed:.2f}s — status {response.status_code}")
+        _EDIT_MAX_RETRIES = 3
+        for _attempt in range(1, _EDIT_MAX_RETRIES + 1):
+            print(f"[edit_image] Sending request to Grok Imagine (attempt {_attempt})...")
+            _t0 = time.perf_counter()
+            response = await asyncio.to_thread(
+                requests.post,
+                "https://api.x.ai/v1/images/edits",
+                headers={"Authorization": f"Bearer {X_AI_API_KEY}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=60,
+            )
+            _elapsed = time.perf_counter() - _t0
+            print(f"[edit_image] Response received in {_elapsed:.2f}s — status {response.status_code}")
+            if response.status_code == 429 and _attempt < _EDIT_MAX_RETRIES:
+                _wait = 2 ** _attempt  # 2s, 4s
+                print(f"[edit_image] 429 on attempt {_attempt}, retrying in {_wait}s...")
+                await asyncio.sleep(_wait)
+                continue
+            break
         response.raise_for_status()
         result = response.json()
 
