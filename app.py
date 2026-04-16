@@ -137,7 +137,6 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
     waiting_sound_active = False
     last_activity = asyncio.get_event_loop().time()
     user_script_buffer = ""
-    agent_script_buffer = ""
     last_agent_text = ""
 
     async def inactivity_watchdog():
@@ -194,16 +193,9 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                 print("Agent speaking...")
                 await _send_to_browser(browser_ws, {"type": "reply.started"})
 
-            elif t == "transcript.agent.delta":
-                agent_text = event.get("text", "")
-                agent_script_buffer = agent_script_buffer + agent_text
-                print(f"\rAgent: {agent_script_buffer}...", end="", flush=True)
-                await _send_to_browser(browser_ws, {"type": "transcript.agent.delta", "text": agent_text})
-
             elif t == "transcript.agent":
                 agent_text = event.get("text", "")
                 last_agent_text = agent_text
-                agent_script_buffer = ""
                 await _send_to_browser(browser_ws, {"type": "transcript.agent", "text": agent_text})
 
             elif t == "tool.call":
@@ -226,18 +218,15 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 
             elif t == "reply.done":
                 if event.get("status") == "interrupted":
-                    agent_text = last_agent_text or agent_script_buffer
-                    if agent_text:
-                        print(f"\rAgent (interrupted): {agent_text}      ")
+                    if last_agent_text:
+                        print(f"\rAgent (interrupted): {last_agent_text}      ")
                     last_agent_text = ""
-                    agent_script_buffer = ""
                     await _send_to_browser(browser_ws, {"type": "reply.interrupted"})
                     pending_tools.clear()
                 else:
                     if last_agent_text:
                         print(f"\rAgent: {last_agent_text}      ")
                     last_agent_text = ""
-                    agent_script_buffer = ""
                     if pending_tools:
                         for tool in pending_tools:
                             await aai_ws.send(json.dumps({

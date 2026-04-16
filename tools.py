@@ -77,8 +77,8 @@ TOOLS = [
         "description": (
             "Read the source code of a file that makes up this AI agent. "
             "Use this to accurately describe how components work or interact. "
-            "Available files: main.py (session/WebSocket logic), tools.py (tool schemas), "
-            "tool_handlers.py (tool implementations), globals.py (constants/config), env.py (env vars)."
+            "Available files: app.py (session/WebSocket logic), tools.py (tool schemas), "
+            "tool_handlers.py (tool implementations), globals.py (constants/config), config.py (env vars)."
         ),
         "parameters": {
             "type": "object",
@@ -86,7 +86,7 @@ TOOLS = [
                 "file": {
                     "type": "string",
                     "description": "The source file to read.",
-                    "enum": ["main.py", "tools.py", "tool_handlers.py", "image_store.py", "globals.py", "env.py"]
+                    "enum": ["app.py", "tools.py", "tool_handlers.py", "globals.py", "config.py"]
                 }
             },
             "required": ["file"]
@@ -135,7 +135,7 @@ TOOLS = [
             "Edit the image currently displayed to the user. "
             "Call this when the user asks you to modify, edit, update, or change the current image. "
             "Also call this when the user asks for zoom in/out, pan left/right/up/down, or crop operations. "
-            "Send the current image to the Gemini model along with the user's specific edit request. "
+            "Send the current image to Grok Imagine along with the user's specific edit request. "
             "Returns the edited image which will be displayed to the user."
         ),
         "parameters": {

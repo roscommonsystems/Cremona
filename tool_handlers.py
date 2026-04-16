@@ -176,7 +176,7 @@ async def push_system_prompt(ws) -> None:
 
 async def code_information(args: dict, ws) -> dict:
     file = args.get("file", "")
-    allowed = {"main.py", "tools.py", "tool_handlers.py", "globals.py", "config.py", "app.py"}
+    allowed = {"app.py", "tools.py", "tool_handlers.py", "globals.py", "config.py"}
     if file not in allowed:
         return {"error": f"File '{file}' is not available."}
     base_dir = os.path.dirname(os.path.abspath(__file__))
