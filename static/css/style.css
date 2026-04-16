@@ -63,6 +63,7 @@ body {
 #app.image-shown {
     justify-content: flex-start;
     padding-top: 40px;
+    overflow-y: auto;
 }
 
 #app.image-shown #logo {
