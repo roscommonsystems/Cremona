@@ -15,4 +15,5 @@ env.py
 # IDE
 .vscode/
 .idea/
+.claude/
 generated_images/
