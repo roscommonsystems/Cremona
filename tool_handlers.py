@@ -83,10 +83,6 @@ def _convert_image_to_jpeg(image_data_url: str) -> tuple[str | None, str | None]
         return None, f"Failed to process image: {str(e)}"
 
 
-async def get_time(args: dict, ws) -> dict:
-    now = datetime.datetime.now()
-    return {"time": now.strftime("%I:%M %p"), "date": now.strftime("%A, %B %d")}
-
 
 async def change_voice(args: dict, ws) -> dict:
     global current_voice
@@ -391,7 +387,6 @@ async def edit_image(args: dict, ws) -> dict:
 
 
 HANDLERS = {
-    "get_time": get_time,
     "change_voice": change_voice,
     "create_memory": create_memory,
     "code_information": code_information,

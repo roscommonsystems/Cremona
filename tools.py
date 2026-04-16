@@ -11,15 +11,6 @@ _voice_desc_str = ", ".join(_voice_description_parts)
 TOOLS = [
     {
         "type": "function",
-        "name": "get_time",
-        "description": "Get the current time and date.",
-        "parameters": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    {
-        "type": "function",
         "name": "create_memory",
         "description": (
             "Save a piece of information to persistent memory. "
