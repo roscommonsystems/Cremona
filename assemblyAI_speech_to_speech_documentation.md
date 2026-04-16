@@ -1,10 +1,7 @@
-https://www.assemblyai.com/docs/voice-agents/speech-to-speech.md
-
 ***
 
 title: Voice Agent API
 description: Build real-time voice AI agents with a single WebSocket connection — speech in, speech out
-hidden: true
 ---------------------
 
 For clean Markdown of any page, append .md to the page URL. For a complete documentation index, see https://www.assemblyai.com/docs/voice-agents/llms.txt. For full documentation content, see https://www.assemblyai.com/docs/voice-agents/llms-full.txt.
@@ -620,18 +617,51 @@ Set the agent's voice in `session.update`. You can change the voice mid-session.
 }
 ```
 
-| Voice     | Voice    | Voice     | Voice      |
-| --------- | -------- | --------- | ---------- |
-| `alexei`  | `dylan`  | `kevin`   | `nathan`   |
-| `alexis`  | `gautam` | `leo`     | `nova`     |
-| `andy`    | `grace`  | `lily`    | `pete`     |
-| `anna`    | `jennie` | `luke`    | `santiago` |
-| `antoine` | `josh`   | `marco`   | `sofia`    |
-| `audrey`  | `kai`    | `max`     | `summer`   |
-| `brian`   | `kenji`  | `melissa` | `will`     |
-| `claire`  |          | `michael` | `yuki`     |
-| `dawn`    |          |           | `zoe`      |
-| `diana`   |          |           |            |
+#### English voices
+
+| Voice     | Description                                  |
+| --------- | -------------------------------------------- |
+| `josh`    | Conversational, professional, American, male |
+| `dylan`   | Theatrical, energetic, chatty, jagged        |
+| `dawn`    | Professional, deliberate, smooth             |
+| `summer`  | Empathetic, aesthetic, conversational        |
+| `andy`    | Soft, conversational, young                  |
+| `zoe`     | Smooth, conversational, young                |
+| `alexis`  | High-pitched, chatty                         |
+| `michael` | Deep, calming, conversational                |
+| `pete`    | Smooth, direct, clear, fast-paced            |
+| `brian`   | Chatty, nasal, expressive                    |
+| `diana`   | Soft, older, calming                         |
+| `grace`   | Southern, older, warm                        |
+| `kai`     | Slow, calming, ASMR                          |
+| `claire`  | Lively, young, conversational                |
+| `nathan`  | Deep, older                                  |
+| `audrey`  | Deeper, older, calming                       |
+| `melissa` | British, clear, smooth, instructive, simple  |
+| `will`    | Narrative, British, conversational           |
+
+#### Multilingual voices
+
+All multilingual voices also speak English and support code-switching between their language(s) and English.
+
+| Voice      | Language(s)                       | Description                            |
+| ---------- | --------------------------------- | -------------------------------------- |
+| `gautam`   | Hindi/Hinglish, English           | Conversational                         |
+| `luke`     | Mandarin, English                 | Conversational, native in both         |
+| `alexei`   | Russian, English                  | Conversational                         |
+| `max`      | German, English                   | British accent, conversational, smooth |
+| `anna`     | German, English                   | Conversational, soft                   |
+| `antoine`  | French, English                   | Conversational                         |
+| `jennie`   | Korean, English                   |                                        |
+| `kenji`    | Japanese, English                 |                                        |
+| `lily`     | Mandarin, English                 |                                        |
+| `kevin`    | Korean, English                   |                                        |
+| `nova`     | Italian, English                  |                                        |
+| `marco`    | Italian, English                  |                                        |
+| `sofia`    | Spanish, English                  |                                        |
+| `yuki`     | Japanese, English                 |                                        |
+| `santiago` | Spanish, English                  |                                        |
+| `leo`      | Spanish (Latin American), English | Colombian                              |
 
 ***
 
@@ -670,7 +700,7 @@ pending_tools: list[dict] = []
 
 # In your event loop:
 
-elif t == "tool.call":
+if t == "tool.call":
     name = event["name"]
     args = event.get("args", {})   # args is a plain dict
 
