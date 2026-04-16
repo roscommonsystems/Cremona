@@ -11,14 +11,20 @@ import io
 from PIL import Image
 from openai import AsyncOpenAI
 
-from config import OPEN_ROUTER_API_KEY
+from config import OPEN_ROUTER_API_KEY, X_AI_API_KEY
 from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
 from image_store import store_image, get_image_data_url
 
-# Create the OpenAI client configured for OpenRouter
+# OpenAI client configured for OpenRouter (used by describe_current_image)
 openai_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPEN_ROUTER_API_KEY,
+)
+
+# OpenAI client configured for xAI Grok Imagine (used by generate_image, edit_image)
+grok_client = AsyncOpenAI(
+    base_url="https://api.x.ai/v1",
+    api_key=X_AI_API_KEY,
 )
 
 current_voice = DEFAULT_VOICE
@@ -186,63 +192,36 @@ async def code_information(args: dict, ws) -> dict:
 
 async def generate_image(args: dict, ws) -> dict:
     prompt = args.get("prompt", "")
-    if not OPEN_ROUTER_API_KEY:
-        return {"error": "OPEN_ROUTER_API_KEY is not configured"}
-
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": "google/gemini-2.5-flash-image",
-        "messages": [{"role": "user", "content": prompt}],
-        "modalities": ["image", "text"],
-        "image_config": {
-            "aspect_ratio": IMAGE_ASPECT_RATIO,
-            "image_size": IMAGE_SIZE,
-        },
-        "stream": False,
-    }
+    if not X_AI_API_KEY:
+        return {"error": "X_AI_API_KEY is not configured"}
 
     try:
-        print(f"[generate_image] Sending request to OpenRouter ({IMAGE_SIZE}, {IMAGE_ASPECT_RATIO})...")
+        print(f"[generate_image] Sending request to Grok Imagine ({IMAGE_SIZE}, {IMAGE_ASPECT_RATIO})...")
         _t0 = time.perf_counter()
-        response = await asyncio.to_thread(
-            requests.post, url, headers=headers, json=payload, timeout=45
+        response = await grok_client.images.generate(
+            model="grok-2-image",
+            prompt=prompt,
+            response_format="b64_json",
+            extra_body={
+                "aspect_ratio": IMAGE_ASPECT_RATIO,
+                "resolution": IMAGE_SIZE.lower(),
+            },
         )
         _elapsed = time.perf_counter() - _t0
-        print(f"[generate_image] Response received in {_elapsed:.2f}s — status {response.status_code}")
-        response.raise_for_status()
-        result = response.json()
+        print(f"[generate_image] Response received in {_elapsed:.2f}s")
 
-        choices = result.get("choices", [])
-        if not choices:
-            logging.warning(f"generate_image: no choices. Full response: {json.dumps(result)[:500]}")
-            return {"error": "No choices returned from API"}
+        b64 = response.data[0].b64_json
+        if not b64:
+            return {"error": "No image data returned from Grok Imagine"}
 
-        message = choices[0].get("message", {})
-        images = message.get("images", [])
-        if not images:
-            return {"error": "No images returned. Model may not have generated an image for this prompt."}
+        data_url = f"data:image/jpeg;base64,{b64}"
+        store_image(data_url, prompt)
+        return {
+            "status": "generated",
+            "has_image": True,
+            "prompt": prompt,
+        }
 
-        # Store the first valid image as the current image
-        for img in images:
-            data_url = img.get("image_url", {}).get("url", "")
-            if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
-                store_image(data_url, prompt)
-                return {
-                    "status": "generated",
-                    "has_image": True,
-                    "prompt": prompt,
-                }
-
-        return {"error": "Failed to decode image"}
-
-    except requests.exceptions.Timeout:
-        return {"error": "Image generation timed out (45s)"}
-    except requests.exceptions.HTTPError as e:
-        return {"error": f"API error {e.response.status_code}: {e.response.text[:200]}"}
     except Exception as e:
         logging.error(f"generate_image failed: {e}")
         return {"error": str(e)}
@@ -339,100 +318,72 @@ async def download_image(args: dict, ws) -> dict:
 
 
 async def edit_image(args: dict, ws) -> dict:
-    """Edit the currently displayed image using Gemini's image generation model."""
+    """Edit the currently displayed image using Grok Imagine."""
     edit_request = args.get("edit_request", "")
 
     if not edit_request:
         return {"error": "No edit request provided."}
 
-    # Get the current image data URL
     image_data_url = get_image_data_url()
     if not image_data_url:
         return {"error": "No image is currently displayed. Please create an image first."}
 
-    if not OPEN_ROUTER_API_KEY:
-        return {"error": "OPEN_ROUTER_API_KEY is not configured"}
+    if not X_AI_API_KEY:
+        return {"error": "X_AI_API_KEY is not configured"}
 
-    # Convert image to JPEG format for better compatibility with Gemini
+    # Convert image to JPEG for compatibility
     image_data_url, error_message = _convert_image_to_jpeg(image_data_url)
     if error_message:
         return {"error": error_message}
 
-    logging.debug("Attempting to edit current image")
+    logging.debug("Attempting to edit current image via Grok Imagine")
 
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {OPEN_ROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
+    # The OpenAI SDK images.edit() uses multipart/form-data which xAI does not support.
+    # Use a direct JSON POST to /v1/images/edits instead.
     payload = {
-        "model": "google/gemini-2.5-flash-image",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": edit_request
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image_data_url
-                        }
-                    }
-                ]
-            }
-        ],
-        "modalities": ["image", "text"],
-        "image_config": {
-            "aspect_ratio": IMAGE_ASPECT_RATIO,
-            "image_size": IMAGE_SIZE,
-        },
-        "stream": False,
+        "model": "grok-2-image",
+        "prompt": edit_request,
+        "image": {"url": image_data_url, "type": "image_url"},
+        "response_format": "b64_json",
     }
-
-    logging.debug("Sending request to OpenRouter for image editing")
 
     try:
+        print(f"[edit_image] Sending request to Grok Imagine...")
+        _t0 = time.perf_counter()
         response = await asyncio.to_thread(
-            requests.post, url, headers=headers, json=payload, timeout=45
+            requests.post,
+            "https://api.x.ai/v1/images/edits",
+            headers={"Authorization": f"Bearer {X_AI_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=60,
         )
-        logging.debug(f"Response received with status: {response.status_code}")
+        _elapsed = time.perf_counter() - _t0
+        print(f"[edit_image] Response received in {_elapsed:.2f}s — status {response.status_code}")
         response.raise_for_status()
         result = response.json()
-        logging.debug("Response JSON parsed successfully")
 
-        choices = result.get("choices", [])
-        if not choices:
-            logging.warning(f"edit_image: no choices. Full response: {json.dumps(result)[:500]}")
-            return {"error": "No choices returned from API"}
+        data_items = result.get("data", [])
+        if not data_items:
+            logging.warning(f"edit_image: no data in response. Full response: {json.dumps(result)[:500]}")
+            return {"error": "No image data returned from Grok Imagine"}
 
-        message = choices[0].get("message", {})
-        images = message.get("images", [])
-        if not images:
-            logging.warning(f"edit_image: no images in choices. Full response: {json.dumps(result)[:500]}")
-            return {"error": "No images returned. Model may not have generated an image for this request."}
+        b64 = data_items[0].get("b64_json", "")
+        if not b64:
+            return {"error": "No base64 image data in response"}
 
-        # Store the first valid image as the current image
-        for img in images:
-            data_url = img.get("image_url", {}).get("url", "")
-            if re.match(r"data:image/(\w+);base64,.+", data_url, re.DOTALL):
-                store_image(data_url, edit_request)
-                return {
-                    "status": "edited",
-                    "has_image": True,
-                    "edit_request": edit_request,
-                }
-
-        return {"error": "Failed to decode image"}
+        data_url = f"data:image/jpeg;base64,{b64}"
+        store_image(data_url, edit_request)
+        return {
+            "status": "edited",
+            "has_image": True,
+            "edit_request": edit_request,
+        }
 
     except requests.exceptions.Timeout:
         logging.error("Image editing request timed out")
-        return {"error": "Image editing timed out (45s)"}
+        return {"error": "Image editing timed out (60s)"}
     except requests.exceptions.HTTPError as e:
-        logging.error(f"HTTP error from OpenRouter: {e.response.status_code} - {e.response.text[:5000]}")
+        logging.error(f"HTTP error from Grok Imagine: {e.response.status_code} - {e.response.text[:5000]}")
         return {"error": f"API error {e.response.status_code}: {e.response.text[:2000]}"}
     except Exception as e:
         logging.error(f"edit_image failed: {e}", exc_info=True)
