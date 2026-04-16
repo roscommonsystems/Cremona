@@ -91,6 +91,18 @@ body {
     object-fit: contain;
 }
 
+#app.image-shown #generated-image {
+    max-height: 100%;
+}
+
+#app.image-shown #status {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    padding-bottom: 20px;
+}
+
 /* Status text */
 #status {
     position: fixed;
