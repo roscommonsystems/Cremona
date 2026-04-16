@@ -165,10 +165,13 @@ def build_system_prompt(memory_str: str, voice: str) -> str:
     return base
 
 
-async def push_system_prompt(ws) -> None:
+def get_system_prompt() -> str:
     memories = load_memories_from_file()
-    prompt = build_system_prompt(format_memories_for_prompt(memories), current_voice)
-    await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": prompt}}))
+    return build_system_prompt(format_memories_for_prompt(memories), current_voice)
+
+
+async def push_system_prompt(ws) -> None:
+    await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": get_system_prompt()}}))
 
 
 async def code_information(args: dict, ws) -> dict:

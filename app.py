@@ -29,7 +29,7 @@ from security import (
     RateLimitExceeded,
 )
 from tools import TOOLS
-from tool_handlers import execute_tool, push_system_prompt
+from tool_handlers import execute_tool, get_system_prompt
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -290,12 +290,12 @@ async def ws_proxy():
                     await aai_ws.send(json.dumps({
                         "type": "session.update",
                         "session": {
+                            "system_prompt": get_system_prompt(),
                             "greeting": GREETING,
                             "voice": DEFAULT_VOICE,
                             "tools": TOOLS,
                         }
                     }))
-                    await push_system_prompt(aai_ws)
 
                     # Run browser→AAI and AAI→browser concurrently
                     browser_task = asyncio.create_task(
