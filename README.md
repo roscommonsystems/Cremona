@@ -5,15 +5,15 @@ A real-time conversational AI application powered by [AssemblyAI's Voice Agent A
 ## Features
 
 - **Bidirectional audio streaming** over WebSocket — low-latency speech in, speech out
-- **20 voice personalities** to choose from (e.g. Kai, Diana, Leo, Audrey)
+- **34 voice personalities** to choose from (e.g. Kai, Diana, Leo, Audrey)
 - **Tool use** — the agent can:
-  - Tell you the time
   - Switch its own voice
   - Inspect its source code
   - Create memories about your preferences
   - Generate images from text descriptions
   - Describe currently displayed images
   - Edit existing images
+  - Download images to disk
 - **Image display** — generated and edited images appear in the web interface
 - **Persistent memory** — the agent remembers things across sessions (stored in `data/memories.json`)
 - **Auto-reconnect** with exponential backoff if the connection drops
@@ -23,19 +23,21 @@ A real-time conversational AI application powered by [AssemblyAI's Voice Agent A
 ## Prerequisites
 
 - Python 3.10+
-- A microphone and speakers (for terminal mode)
 - An [AssemblyAI API key](https://www.assemblyai.com/dashboard)
-- An [OpenRouter API key](https://openrouter.ai/) (for image generation features)
+- An [OpenRouter API key](https://openrouter.ai/) (for image description)
+- An [xAI API key](https://x.ai/) (for image generation via Grok Imagine)
 
 ## Setup
 
 1. **Clone the repo**
+
    ```bash
    git clone <repo-url>
    cd speechtospeech_test
    ```
 
 2. **Create and activate a virtual environment**
+
    ```bash
    python -m venv .venv
    # Windows
@@ -45,6 +47,7 @@ A real-time conversational AI application powered by [AssemblyAI's Voice Agent A
    ```
 
 3. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -52,113 +55,115 @@ A real-time conversational AI application powered by [AssemblyAI's Voice Agent A
 4. **Configure your API keys**
 
    Create a `.env` file in the project root:
-   ```
+
+   ```env
    API_KEY=your_assemblyai_api_key_here
    OPEN_ROUTER_API_KEY=your_openrouter_api_key_here
+   X_AI_API_KEY=your_xai_api_key_here
    ```
 
 ## Usage
 
-### Terminal Mode (Audio I/O)
-
-Run the terminal-based version that uses your microphone and speakers directly:
-
-```bash
-python main.py
-```
-
-Speak naturally — the agent will respond through your speakers. Press `Ctrl+C` to end the session.
-
-### Web App Mode
-
-Run the web interface for browser-based interaction with image display:
+Run the web app:
 
 ```bash
 # Development server
-hypercorn app:app --bind 0.0.0.0:8080
-
-# Or use Python directly
 python app.py
+
+# Production with Hypercorn
+hypercorn app:app --bind 0.0.0.0:8080
 ```
 
 Then open `http://localhost:8080` in your browser. Click the logo to start the session.
 
-The web app supports:
-- Audio input/output through the browser
-- Image generation and display
-- Image editing
-- All voice and memory tools
+### Docker
+
+```bash
+docker build -t cremona .
+docker run -p 8080:8080 \
+  -e API_KEY=your_assemblyai_key \
+  -e OPEN_ROUTER_API_KEY=your_openrouter_key \
+  -e X_AI_API_KEY=your_xai_key \
+  cremona
+```
 
 ## Configuration
 
 Key settings are in [globals.py](globals.py):
 
 | Constant | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `DEFAULT_VOICE` | `"kai"` | Voice used at session start |
 | `INACTIVITY_TIMEOUT` | `900` s | Seconds of silence before auto-disconnect |
 | `MAX_RETRIES` | `4` | Reconnection attempts on connection drop |
 | `BACKOFF_CAP` | `60` s | Maximum delay between reconnection attempts |
 | `MAX_MEMORIES` | `10` | Maximum number of stored memories |
 | `IMAGE_ASPECT_RATIO` | `"1:1"` | Aspect ratio for generated images |
-| `IMAGE_SIZE` | `"1K"` | Resolution for generated images (1K, 2K, 4K) |
+| `IMAGE_SIZE` | `"1k"` | Resolution for generated images (1k, 2k) |
+| `MAX_CONCURRENT_SESSIONS` | `10` | Global session cap (per instance) |
+| `MAX_SESSIONS_PER_IP` | `2` | Per-IP session limit |
+
+All security limits can be overridden via environment variables without code changes.
 
 ### Image Generation Configuration
 
-Available aspect ratios:
-- `1:1` - 1024x1024 (default)
-- `2:3` - 832x1248
-- `3:2` - 1248x832
-- `3:4` - 864x1184
-- `4:3` - 1184x864
-- `4:5` - 896x1152
-- `5:4` - 1152x896
-- `9:16` - 768x1344
-- `16:9` - 1344x768
-- `21:9` - 1536x672
+Available aspect ratios: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `9:16`, `16:9`, `2:1`, `1:2`, `20:9`, `9:20`, `auto`
 
-Available sizes:
-- `1K` - Standard resolution
-- `2K` - Higher resolution
-- `4K` - Highest resolution
+Available sizes: `1k` (standard), `2k` (higher)
 
 ### Available Voices
 
 | Name | Description |
-|---|---|
-| alexei | Russian male |
-| alexis | American girl |
-| andy | Stoned college kid male |
-| anna | Pleasant American female, hippy |
-| antoine | French young male |
-| audrey | Mature neutral accent female, dramatic |
-| brian | Young American boy |
-| claire | American girl, upbeat and friendly |
-| dawn | Soft-voiced American female |
-| diana | Refined mature elegant female |
-| dylan | Straightforward middle-aged American male |
-| gautam | Indian male, slow-paced |
-| grace | Mysterious dramatic mature woman |
-| jennie | Dainty delicate young female |
-| josh | Neutral middle-aged American male |
-| kai | Ditzy California female |
-| kenji | Confident male with Japanese accent |
-| kevin | Clear casual neutral conversational male |
-| leo | Deep male with Italian/Portuguese accent |
-| lily | Cultured academic female |
+| --- | --- |
+| **English** | |
+| josh | Conversational, professional, American, male |
+| dylan | Theatrical, energetic, chatty, jagged |
+| dawn | Professional, deliberate, smooth |
+| summer | Empathetic, aesthetic, conversational |
+| andy | Soft, conversational, young |
+| zoe | Smooth, conversational, young |
+| alexis | High-pitched, chatty |
+| michael | Deep, calming, conversational |
+| pete | Smooth, direct, clear, fast-paced |
+| brian | Chatty, nasal, expressive |
+| diana | Soft, older, calming |
+| grace | Southern, older, warm |
+| kai | Slow, calming, ASMR |
+| claire | Lively, young, conversational |
+| nathan | Deep, older |
+| audrey | Deeper, older, calming |
+| melissa | British, clear, smooth, instructive |
+| will | Narrative, British, conversational |
+| **Multilingual** | |
+| gautam | Hindi/Hinglish + English, conversational |
+| luke | Mandarin + English, native in both |
+| alexei | Russian + English, conversational |
+| max | German + English, British accent, smooth |
+| anna | German + English, conversational, soft |
+| antoine | French + English, conversational |
+| jennie | Korean + English |
+| kenji | Japanese + English |
+| lily | Mandarin + English |
+| kevin | Korean + English |
+| nova | Italian + English |
+| marco | Italian + English |
+| sofia | Spanish + English |
+| yuki | Japanese + English |
+| santiago | Spanish + English |
+| leo | Spanish (Latin American) + English, Colombian |
 
 ## Project Structure
 
-```
+```text
 speechtospeech_test/
-├── main.py            # Entry point for terminal mode — WebSocket session, audio I/O, event loop
-├── app.py             # Web application (Quart) — browser-based interface with image support
+├── app.py             # Main web application (Quart) — WebSocket proxy, browser UI, session management
 ├── tools.py           # Tool schemas (definitions sent to the agent)
-├── tool_handlers.py   # Tool implementations (time, memory, voice, image tools)
+├── tool_handlers.py   # Tool implementations (memory, voice, image tools)
 ├── audio_alerts.py    # WAV playback helpers and waiting-sound context manager
 ├── image_store.py     # In-memory storage for current image (single image at a time)
 ├── globals.py         # Constants and configuration
 ├── config.py          # Environment variable loader
+├── security.py        # Per-IP rate limiting and concurrent session tracking
 ├── assets/            # Alert sound files (.wav)
 ├── static/            # Web app static files (CSS, JS, images)
 │   ├── audio/
@@ -168,21 +173,34 @@ speechtospeech_test/
 ├── templates/         # HTML templates
 │   └── index.html
 ├── data/              # Runtime data (memories.json written here)
+├── Dockerfile         # Container build config (Python 3.12-slim, Hypercorn)
 └── .env               # API keys (not committed)
 ```
+
+### Test / Example Files
+
+These files are not part of the main application — they are standalone examples:
+
+| File | Purpose |
+| --- | --- |
+| `main.py` | Terminal audio I/O demo — connects directly with microphone and speakers |
+| `quick_start.py` | Minimal API connection example showing basic tool handling |
 
 ## Dependencies
 
 Core:
+
 - `quart` - Async web framework
 - `hypercorn` - ASGI server
 - `websockets` - WebSocket client
+- `quart-rate-limiter` - Rate limiting middleware
 - `python-dotenv` - Environment variable loading
 - `requests` - HTTP client for API calls
 - `pillow` - Image processing
-- `openai` - OpenRouter API client
+- `openai` - SDK used for OpenRouter and xAI APIs
 
-Terminal mode (optional):
+Terminal examples only (optional):
+
 - `sounddevice` - Audio device access
 - `numpy` - Audio processing
 
