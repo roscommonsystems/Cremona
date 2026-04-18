@@ -8,7 +8,7 @@
 
 ## What Happened
 
-During a live speech-to-speech session, the app successfully made one image edit call, then a second call to the same model (`edit_image`) failed with a 429 rate limit error. The full raw error from OpenRouter:
+During a live Cremona session, the app successfully made one image edit call, then a second call to the same model (`edit_image`) failed with a 429 rate limit error. The full raw error from OpenRouter:
 
 ```
 google/gemini-2.5-flash-image is temporarily rate-limited upstream.

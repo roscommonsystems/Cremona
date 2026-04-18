@@ -1,6 +1,6 @@
-# Cremona - Speech-to-Speech Voice Agent
+# Cremona - Image Editing for the Blind
 
-A real-time conversational AI application powered by [AssemblyAI's Voice Agent API](https://www.assemblyai.com/docs/speech-to-speech). Speak naturally and hear the agent respond in a synthesized voice — no manual transcription or TTS pipeline needed.
+A voice-controlled image editing assistant designed for blind and visually impaired users, powered by [AssemblyAI's Voice Agent API](https://www.assemblyai.com/docs/speech-to-speech). Speak naturally to generate, describe, and edit images — no screen interaction needed.
 
 ## Features
 

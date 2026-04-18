@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes a critical architectural issue that prevents the speech-to-speech application from safely handling multiple concurrent users when deployed to a multi-instance cloud environment like Google Cloud Run.
+This document describes a critical architectural issue that prevents the Cremona - Image Editing for the Blind from safely handling multiple concurrent users when deployed to a multi-instance cloud environment like Google Cloud Run.
 
 **Date Identified:** 2026-04-13
 
