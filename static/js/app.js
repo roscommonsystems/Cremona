@@ -189,7 +189,7 @@ function connectWS() {
     };
 
     ws.onclose = () => {
-        if (state === "active") {
+        if (state !== "idle") {
             setStatus("Connection lost. Click logo to reconnect.");
             playSound("error");
             setState("idle");
@@ -279,6 +279,8 @@ function handleServerMessage(msg) {
 
         case "error":
             setStatus(`Error: ${msg.message}`);
+            playSound("error");
+            setState("idle");
             break;
     }
 }

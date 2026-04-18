@@ -249,8 +249,16 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 
     except websockets.exceptions.ConnectionClosed as e:
         log.info(f"AssemblyAI WebSocket closed: {e}")
+        await _send_to_browser(browser_ws, {
+            "type": "error",
+            "message": "Voice service disconnected. Click logo to reconnect.",
+        })
     except Exception as e:
         log.error(f"Error processing AssemblyAI events: {e}")
+        await _send_to_browser(browser_ws, {
+            "type": "error",
+            "message": "Voice service error. Click logo to reconnect.",
+        })
     finally:
         watchdog_task.cancel()
         try:
