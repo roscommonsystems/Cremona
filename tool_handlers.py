@@ -242,7 +242,7 @@ async def create_memory(args: dict, ws) -> dict:
         return {"status": "error", "message": "Failed to save memory"}
 
 
-async def describe_current_image(args: dict, ws) -> dict:
+async def describe_current_image(args: dict, ws=None) -> dict:
     """Describe the image currently displayed to the user using a VLM."""
     # Get the optional focus parameter from the user's request
     focus = args.get("focus", "")
@@ -255,11 +255,10 @@ async def describe_current_image(args: dict, ws) -> dict:
     if not OPEN_ROUTER_API_KEY:
         return {"error": "OPEN_ROUTER_API_KEY is not configured"}
 
-    # Convert image to JPEG format for better compatibility with Llama 4
-    # The Gemini-generated image may be PNG, but many models expect JPEG
-    image_data_url, error_message = _convert_image_to_jpeg(image_data_url)
-    if error_message:
-        return {"error": error_message}
+    if not image_data_url.startswith("data:image/jpeg"):
+        image_data_url, error_message = _convert_image_to_jpeg(image_data_url)
+        if error_message:
+            return {"error": error_message}
 
     logging.debug("Attempting to describe current image")
 
