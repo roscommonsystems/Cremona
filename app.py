@@ -289,7 +289,9 @@ async def ws_proxy():
                         "session": {
                             "system_prompt": get_system_prompt(),
                             "greeting": GREETING,
-                            "voice": DEFAULT_VOICE,
+                            "output": {
+                                "voice": DEFAULT_VOICE,
+                            },
                             "tools": TOOLS,
                         }
                     }))
