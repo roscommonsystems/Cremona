@@ -219,10 +219,11 @@ async def generate_image(args: dict, ws) -> dict:
 
         data_url = f"data:image/jpeg;base64,{b64}"
         store_image(data_url, prompt)
+        description_result = await describe_current_image({}, ws)
         return {
             "status": "generated",
             "has_image": True,
-            "prompt": prompt,
+            "description": description_result.get("description") or description_result.get("error", ""),
         }
 
     except Exception as e:
@@ -269,6 +270,8 @@ async def describe_current_image(args: dict, ws) -> dict:
         description_prompt = "Please provide a detailed, extended description of this image. Describe the scene, subjects, colors, composition, style, mood, and any notable details."
 
     try:
+        print("[describe_current_image] Sending request to OpenRouter (llama-4-maverick)...")
+        _t0 = time.perf_counter()
         response = await openai_client.chat.completions.create(
             model="meta-llama/llama-4-maverick",
             messages=[
@@ -295,7 +298,8 @@ async def describe_current_image(args: dict, ws) -> dict:
             timeout=30,
         )
 
-        logging.debug("Response received from OpenRouter")
+        _elapsed = time.perf_counter() - _t0
+        print(f"[describe_current_image] Response received in {_elapsed:.2f}s")
 
         description = response.choices[0].message.content
 
@@ -303,6 +307,7 @@ async def describe_current_image(args: dict, ws) -> dict:
             logging.warning("Empty content received from VLM")
             return {"error": "Empty description received from VLM"}
 
+        print(f"[describe_current_image] Description: {description}")
         logging.info("Image description generated successfully")
         return {
             "status": "success",
@@ -387,10 +392,11 @@ async def edit_image(args: dict, ws) -> dict:
 
         data_url = f"data:image/jpeg;base64,{b64}"
         store_image(data_url, edit_request)
+        description_result = await describe_current_image({}, ws)
         return {
             "status": "edited",
             "has_image": True,
-            "edit_request": edit_request,
+            "description": description_result.get("description") or description_result.get("error", ""),
         }
 
     except requests.exceptions.Timeout:
