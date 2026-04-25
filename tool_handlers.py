@@ -158,7 +158,11 @@ def build_system_prompt(memory_str: str, voice: str) -> str:
     voice_desc = VOICE_DESCRIPTIONS.get(voice, voice)
     base = (
         "You are a voice assistant. Keep responses to 1-2 short sentences. "
-        f"Your current voice is {voice} ({voice_desc})."
+        f"Your current voice is {voice} ({voice_desc}). "
+        "IMPORTANT: You cannot see images directly. "
+        "Whenever the user asks you to describe, look at, analyse, or say anything about the current image, "
+        "you MUST call the describe_current_image tool first and base your answer solely on its output. "
+        "Never infer or guess image content from the generation prompt or any other source."
     )
     if memory_str and memory_str != "No stored memories.":
         return f"{base}\n\n## Remembered about the user:\n{memory_str}"
