@@ -28,7 +28,7 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
         "type": "session.update",
         "session": {
             "greeting": GREETING,
-            "voice": DEFAULT_VOICE,
+            "output": {"voice": DEFAULT_VOICE},
             "tools": TOOLS,
         }
     }))
@@ -36,7 +36,6 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
 
     pending_tools: list[dict] = []
     waiting_sound: WaitingSound | None = None
-    agent_script_buffer = ""
     last_agent_text = ""
     last_activity = [asyncio.get_event_loop().time()]
 
@@ -106,13 +105,8 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
             elif t == "reply.started":
                 print("Agent speaking...")
 
-            elif t == "transcript.agent.delta":
-                agent_script_buffer += event.get("text", "")
-                print(f"\rAgent: {agent_script_buffer}...", end="", flush=True)
-
             elif t == "transcript.agent":
                 last_agent_text = event['text']
-                agent_script_buffer = ""
 
             elif t == "tool.call":
                 # Accumulate tool results — send them after reply.done
@@ -127,11 +121,9 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
 
             elif t == "reply.done":
                 if event.get("status") == "interrupted":
-                    text = last_agent_text or agent_script_buffer
-                    if text:
-                        print(f"\rAgent (interrupted): {text}      ")
+                    if last_agent_text:
+                        print(f"\rAgent (interrupted): {last_agent_text}      ")
                     last_agent_text = ""
-                    agent_script_buffer = ""
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
                     pending_tools.clear()  # discard pending tool results — agent is listening again

@@ -92,7 +92,7 @@ async def change_voice(args: dict, ws) -> dict:
     prompt = build_system_prompt(format_memories_for_prompt(memories), current_voice)
     await ws.send(json.dumps({
         "type": "session.update",
-        "session": {"voice": voice, "system_prompt": prompt},
+        "session": {"output": {"voice": voice}, "system_prompt": prompt},
     }))
     return {"success": True, "voice": voice}
 

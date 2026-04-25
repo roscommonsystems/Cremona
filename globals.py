@@ -1,5 +1,5 @@
 # WebSocket
-URL = "wss://agents.assemblyai.com/v1/realtime"
+URL = "wss://agents.assemblyai.com/v1/voice"
 
 # Audio
 SAMPLE_RATE = 24000

@@ -237,11 +237,6 @@ function handleServerMessage(msg) {
             agentTranscript = "";
             break;
 
-        case "transcript.agent.delta":
-            agentTranscript += msg.text;
-            setStatus(`Agent: ${agentTranscript}`);
-            break;
-
         case "transcript.agent":
             agentTranscript = msg.text;
             setStatus(`Agent: ${agentTranscript}`);
