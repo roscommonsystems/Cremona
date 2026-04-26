@@ -84,9 +84,9 @@ def _convert_image_to_jpeg(image_data_url: str) -> tuple[str | None, str | None]
 
 
 
-async def change_voice(args: dict, ws) -> dict:
-    voice = args.get("voice", "")
-    return {"success": True, "voice": voice}
+# async def change_voice(args: dict, ws) -> dict:
+#     voice = args.get("voice", "")
+#     return {"success": True, "voice": voice}
 
 
 def load_memories_from_file() -> dict:
@@ -403,7 +403,7 @@ async def edit_image(args: dict, ws) -> dict:
 
 
 HANDLERS = {
-    "change_voice": change_voice,
+    # "change_voice": change_voice,
     "create_memory": create_memory,
     "code_information": code_information,
     "generate_image": generate_image,

@@ -222,8 +222,8 @@ async def _process_aai_events(browser_ws, assemblyai_ws, session_ready):
                     await _send_to_browser(browser_ws, {"type": "image", "data": image_data_url})
                 if is_dict and result_data.get("trigger_download"):
                     await _send_to_browser(browser_ws, {"type": "trigger_download"})
-                if is_dict and event.get("name") == "change_voice":
-                    tool_result["voice_update"] = result_data.get("voice")
+                # if is_dict and event.get("name") == "change_voice":
+                #     tool_result["voice_update"] = result_data.get("voice")
                 pending_tools.append(tool_result)
 
             elif event_type == "reply.audio":
@@ -248,17 +248,17 @@ async def _process_aai_events(browser_ws, assemblyai_ws, session_ready):
                         "call_id": tool["call_id"],
                         "result": json.dumps(tool["result"]),
                     }))
-                    if not tool.get("voice_update"):
-                        continue
-                    new_voice = tool["voice_update"]
-                    tool_handlers.current_voice = new_voice
-                    await assemblyai_ws.send(json.dumps({
-                        "type": "session.update",
-                        "session": {
-                            "output": {"voice": new_voice},
-                            "system_prompt": get_system_prompt(),
-                        },
-                    }))
+                    # if not tool.get("voice_update"):
+                    #     continue
+                    # new_voice = tool["voice_update"]
+                    # tool_handlers.current_voice = new_voice
+                    # await assemblyai_ws.send(json.dumps({
+                    #     "type": "session.update",
+                    #     "session": {
+                    #         "output": {"voice": new_voice},
+                    #         "system_prompt": get_system_prompt(),
+                    #     },
+                    # }))
                 pending_tools.clear()
 
                 if waiting_sound_active:

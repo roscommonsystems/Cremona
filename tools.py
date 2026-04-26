@@ -33,25 +33,25 @@ TOOLS = [
             "required": ["memory_topic", "memory_content"]
         }
     },
-    {
-        "type": "function",
-        "name": "change_voice",
-        "description": (
-            f"Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
-            f"Pick the voice that best matches the user's request based on these descriptions: {_voice_desc_str}."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "voice": {
-                    "type": "string",
-                    "description": "The voice name to switch to.",
-                    "enum": VOICE_LIST
-                }
-            },
-            "required": ["voice"]
-        }
-    },
+    # {
+    #     "type": "function",
+    #     "name": "change_voice",
+    #     "description": (
+    #         f"Change the agent's voice. Call this when the user asks to change, switch, or use a different voice. "
+    #         f"Pick the voice that best matches the user's request based on these descriptions: {_voice_desc_str}."
+    #     ),
+    #     "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "voice": {
+    #                 "type": "string",
+    #                 "description": "The voice name to switch to.",
+    #                 "enum": VOICE_LIST
+    #             }
+    #         },
+    #         "required": ["voice"]
+    #     }
+    # },
     {
         "type": "function",
         "name": "generate_image",
