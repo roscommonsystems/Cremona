@@ -24,8 +24,8 @@ BACKOFF_CAP = 60    # seconds
 INACTIVITY_TIMEOUT = 15 * 60  # seconds
 
 # Memory
-MEMORIES_FILE_PATH = "data/memories.json"
-MAX_MEMORIES = 10
+# MEMORIES_FILE_PATH = "data/memories.json"
+# MAX_MEMORIES = 10
 
 # Voices
 VOICE_DESCRIPTIONS = {

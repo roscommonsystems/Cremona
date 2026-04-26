@@ -12,7 +12,7 @@ from PIL import Image
 from openai import AsyncOpenAI
 
 from config import OPEN_ROUTER_API_KEY, X_AI_API_KEY
-from globals import MEMORIES_FILE_PATH, MAX_MEMORIES, DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
+from globals import DEFAULT_VOICE, VOICE_DESCRIPTIONS, IMAGE_ASPECT_RATIO, IMAGE_SIZE
 from image_store import store_image, get_image_data_url
 
 # OpenAI client configured for OpenRouter (used by describe_current_image)
@@ -89,58 +89,58 @@ def _convert_image_to_jpeg(image_data_url: str) -> tuple[str | None, str | None]
 #     return {"success": True, "voice": voice}
 
 
-def load_memories_from_file() -> dict:
-    if not os.path.exists(MEMORIES_FILE_PATH):
-        return {}
-    try:
-        with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
-            memories_list = json.load(f)
-        return {
-            entry["memory_topic"]: entry["memory_content"]
-            for entry in memories_list
-            if isinstance(entry, dict) and "memory_topic" in entry and "memory_content" in entry
-        }
-    except json.JSONDecodeError as e:
-        logging.error(f"Memories file is corrupted: {e}")
-        return {}
-    except Exception as e:
-        logging.error(f"Error reading memories file: {e}")
-        return {}
+# def load_memories_from_file() -> dict:
+#     if not os.path.exists(MEMORIES_FILE_PATH):
+#         return {}
+#     try:
+#         with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
+#             memories_list = json.load(f)
+#         return {
+#             entry["memory_topic"]: entry["memory_content"]
+#             for entry in memories_list
+#             if isinstance(entry, dict) and "memory_topic" in entry and "memory_content" in entry
+#         }
+#     except json.JSONDecodeError as e:
+#         logging.error(f"Memories file is corrupted: {e}")
+#         return {}
+#     except Exception as e:
+#         logging.error(f"Error reading memories file: {e}")
+#         return {}
 
 
-def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
-    try:
-        os.makedirs("data", exist_ok=True)
-        if os.path.exists(MEMORIES_FILE_PATH):
-            with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
-                memories_list = json.load(f)
-        else:
-            memories_list = []
+# def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
+#     try:
+#         os.makedirs("data", exist_ok=True)
+#         if os.path.exists(MEMORIES_FILE_PATH):
+#             with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
+#                 memories_list = json.load(f)
+#         else:
+#             memories_list = []
+#
+#         for entry in memories_list:
+#             if isinstance(entry, dict) and entry.get("memory_topic") == memory_topic:
+#                 entry["memory_content"] = memory_content
+#                 break
+#         else:
+#             if len(memories_list) >= MAX_MEMORIES:
+#                 memories_list.pop(0)
+#             memories_list.append({"memory_topic": memory_topic, "memory_content": memory_content})
+#
+#         with open(MEMORIES_FILE_PATH, 'w', encoding='utf-8') as f:
+#             json.dump(memories_list, f, indent=2, ensure_ascii=False)
+#         return True
+#     except PermissionError as e:
+#         logging.error(f"Cannot write to memories file: {e}")
+#         return False
+#     except Exception as e:
+#         logging.error(f"Error saving memory: {e}")
+#         return False
 
-        for entry in memories_list:
-            if isinstance(entry, dict) and entry.get("memory_topic") == memory_topic:
-                entry["memory_content"] = memory_content
-                break
-        else:
-            if len(memories_list) >= MAX_MEMORIES:
-                memories_list.pop(0)
-            memories_list.append({"memory_topic": memory_topic, "memory_content": memory_content})
 
-        with open(MEMORIES_FILE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(memories_list, f, indent=2, ensure_ascii=False)
-        return True
-    except PermissionError as e:
-        logging.error(f"Cannot write to memories file: {e}")
-        return False
-    except Exception as e:
-        logging.error(f"Error saving memory: {e}")
-        return False
-
-
-def format_memories_for_prompt(memories_dict: dict) -> str:
-    if not memories_dict:
-        return "No stored memories."
-    return "\n".join(f"- {topic}: {content}" for topic, content in memories_dict.items())
+# def format_memories_for_prompt(memories_dict: dict) -> str:
+#     if not memories_dict:
+#         return "No stored memories."
+#     return "\n".join(f"- {topic}: {content}" for topic, content in memories_dict.items())
 
 
 def build_system_prompt(memory_str: str, voice: str) -> str:
@@ -159,15 +159,14 @@ def build_system_prompt(memory_str: str, voice: str) -> str:
 
 
 def get_system_prompt(voice: str = None) -> str:
-    memories = load_memories_from_file()
-    return build_system_prompt(format_memories_for_prompt(memories), voice or current_voice)
+    return build_system_prompt("", voice or current_voice)
 
 
-async def push_system_prompt(ws) -> None:
-    try:
-        await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": get_system_prompt()}}))
-    except Exception as err:
-        logging.debug(f"An error was encountered: {err}")
+# async def push_system_prompt(ws) -> None:
+#     try:
+#         await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": get_system_prompt()}}))
+#     except Exception as err:
+#         logging.debug(f"An error was encountered: {err}")
 
 
 async def code_information(args: dict, ws) -> dict:
@@ -224,15 +223,15 @@ async def generate_image(args: dict, ws) -> dict:
         return {"error": str(e)}
 
 
-async def create_memory(args: dict, ws) -> dict:
-    topic = args.get("memory_topic", "")
-    content = args.get("memory_content", "")
-    success = save_memory_to_file(topic, content)
-    if success:
-        await push_system_prompt(ws)
-        return {"status": "saved", "memory_topic": topic}
-    else:
-        return {"status": "error", "message": "Failed to save memory"}
+# async def create_memory(args: dict, ws) -> dict:
+#     topic = args.get("memory_topic", "")
+#     content = args.get("memory_content", "")
+#     success = save_memory_to_file(topic, content)
+#     if success:
+#         await push_system_prompt(ws)
+#         return {"status": "saved", "memory_topic": topic}
+#     else:
+#         return {"status": "error", "message": "Failed to save memory"}
 
 
 async def describe_current_image(args: dict, ws=None) -> dict:
@@ -404,7 +403,7 @@ async def edit_image(args: dict, ws) -> dict:
 
 HANDLERS = {
     # "change_voice": change_voice,
-    "create_memory": create_memory,
+    # "create_memory": create_memory,
     "code_information": code_information,
     "generate_image": generate_image,
     "describe_current_image": describe_current_image,

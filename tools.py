@@ -9,30 +9,30 @@ for voice in VOICE_LIST:
 _voice_desc_str = ", ".join(_voice_description_parts)
 
 TOOLS = [
-    {
-        "type": "function",
-        "name": "create_memory",
-        "description": (
-            "Save a piece of information to persistent memory. "
-            "Use this when the user expresses a preference or asks you to remember something "
-            "(e.g. 'remember I prefer concise answers', 'I work in finance'). "
-            "Memories are loaded on startup and injected into your system prompt."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "memory_topic": {
-                    "type": "string",
-                    "description": "Short category label for the memory (e.g. 'communication style')."
-                },
-                "memory_content": {
-                    "type": "string",
-                    "description": "The actual information to remember (e.g. 'user prefers concise responses')."
-                }
-            },
-            "required": ["memory_topic", "memory_content"]
-        }
-    },
+    # {
+    #     "type": "function",
+    #     "name": "create_memory",
+    #     "description": (
+    #         "Save a piece of information to persistent memory. "
+    #         "Use this when the user expresses a preference or asks you to remember something "
+    #         "(e.g. 'remember I prefer concise answers', 'I work in finance'). "
+    #         "Memories are loaded on startup and injected into your system prompt."
+    #     ),
+    #     "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "memory_topic": {
+    #                 "type": "string",
+    #                 "description": "Short category label for the memory (e.g. 'communication style')."
+    #             },
+    #             "memory_content": {
+    #                 "type": "string",
+    #                 "description": "The actual information to remember (e.g. 'user prefers concise responses')."
+    #             }
+    #         },
+    #         "required": ["memory_topic", "memory_content"]
+    #     }
+    # },
     # {
     #     "type": "function",
     #     "name": "change_voice",
