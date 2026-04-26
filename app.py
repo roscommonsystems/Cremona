@@ -87,8 +87,8 @@ async def add_security_headers(response):
 async def index():
     try:
         return await render_template("index.html")
-    except Exception as err:
-        logging.debug(f"An error was encountered: {err}")
+    except Exception as error:
+        logging.debug(f"An error was encountered: {error}")
         raise
 
 
@@ -102,31 +102,31 @@ async def ws_connection_guard():
     Aborting here sends an HTTP error on the upgrade handshake — the WebSocket
     is never established and no downstream resources are allocated.
     """
-    ip = await get_client_ip_ws()
+    client_ip = await get_client_ip_ws()
     try:
-        await check_ws_rate_limit(ip)
+        await check_ws_rate_limit(client_ip)
     except RateLimitExceeded:
         abort(429)  # Too Many Requests
 
 
-async def _forward_browser_to_aai(browser_ws, aai_ws, session_ready):
+async def _forward_browser_to_aai(browser_ws, assemblyai_ws, session_ready):
     """Read messages from the browser and forward audio to AssemblyAI."""
     try:
         while True:
-            raw = await browser_ws.receive()
+            raw_message = await browser_ws.receive()
 
             # Drop oversized frames — legitimate audio chunks at 24kHz 16-bit mono
             # are ~4.8KB/100ms. Anything over MAX_WS_MESSAGE_BYTES is abnormal.
-            if isinstance(raw, (bytes, str)) and len(raw) > MAX_WS_MESSAGE_BYTES:
-                log.warning(f"Oversized WebSocket message ({len(raw)} bytes) dropped")
+            if isinstance(raw_message, (bytes, str)) and len(raw_message) > MAX_WS_MESSAGE_BYTES:
+                log.warning(f"Oversized WebSocket message ({len(raw_message)} bytes) dropped")
                 continue
 
             try:
-                msg = json.loads(raw)
-                if msg.get("type") == "input.audio" and session_ready.is_set():
-                    await aai_ws.send(json.dumps(msg))
-            except Exception as err:
-                logging.debug(f"An error was encountered: {err}")
+                message = json.loads(raw_message)
+                if message.get("type") == "input.audio" and session_ready.is_set():
+                    await assemblyai_ws.send(json.dumps(message))
+            except Exception as error:
+                logging.debug(f"An error was encountered: {error}")
     except Exception as error:
         log.error(f"Error forwarding browser to AssemblyAI: {error}")
 
@@ -139,7 +139,7 @@ async def _send_to_browser(browser_ws, data):
         log.error(f"Error sending to browser WebSocket: {error}")
 
 
-async def _process_aai_events(browser_ws, aai_ws, session_ready):
+async def _process_aai_events(browser_ws, assemblyai_ws, session_ready):
     """Read events from AssemblyAI and process/forward them to the browser."""
     pending_tools: list[dict] = []
     waiting_sound_active = False
@@ -154,74 +154,74 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
             if asyncio.get_event_loop().time() - last_activity >= INACTIVITY_TIMEOUT:
                 log.info("Inactivity timeout reached, closing session")
                 await _send_to_browser(browser_ws, {"type": "session.timeout"})
-                await aai_ws.close()
+                await assemblyai_ws.close()
                 return
 
     watchdog_task = asyncio.create_task(inactivity_watchdog())
 
     try:
-        async for message in aai_ws:
+        async for message in assemblyai_ws:
             try:
                 event = json.loads(message)
-            except Exception as err:
-                logging.debug(f"An error was encountered: {err}")
+            except Exception as error:
+                logging.debug(f"An error was encountered: {error}")
                 continue
-            t = event.get("type")
+            event_type = event.get("type")
 
-            if t == "session.ready":
+            if event_type == "session.ready":
                 session_ready.set()
                 session_id = event.get("session_id", "")
                 print(f"Ready — start speaking  (session_id={session_id})")
                 await _send_to_browser(browser_ws, {"type": "session.ready", "session_id": session_id})
                 await _send_to_browser(browser_ws, {"type": "sound", "name": "open"})
 
-            elif t == "session.updated":
+            elif event_type == "session.updated":
                 print("Session updated.")
 
-            elif t == "input.speech.started":
+            elif event_type == "input.speech.started":
                 last_activity = asyncio.get_event_loop().time()
                 print("\rListening...                    ")
                 await _send_to_browser(browser_ws, {"type": "input.speech.started"})
 
-            elif t == "input.speech.stopped":
+            elif event_type == "input.speech.stopped":
                 print("Processing...")
                 await _send_to_browser(browser_ws, {"type": "input.speech.stopped"})
 
-            elif t == "transcript.user.delta":
+            elif event_type == "transcript.user.delta":
                 last_activity = asyncio.get_event_loop().time()
                 user_text = event.get("text", "")
                 user_script_buffer = user_text
                 print(f"\rYou: {user_text}...", end="", flush=True)
                 await _send_to_browser(browser_ws, {"type": "transcript.user.delta", "text": user_text})
 
-            elif t == "transcript.user":
+            elif event_type == "transcript.user":
                 last_activity = asyncio.get_event_loop().time()
                 user_text = event.get("text", "")
                 user_script_buffer = ""
                 print(f"\rYou: {user_text}      ")
                 await _send_to_browser(browser_ws, {"type": "transcript.user", "text": user_text})
 
-            elif t == "reply.started":
+            elif event_type == "reply.started":
                 print("Agent speaking...")
                 await _send_to_browser(browser_ws, {"type": "reply.started"})
 
-            elif t == "transcript.agent":
+            elif event_type == "transcript.agent":
                 agent_text = event.get("text", "")
                 last_agent_text = agent_text
                 await _send_to_browser(browser_ws, {"type": "transcript.agent", "text": agent_text})
 
-            elif t == "tool.call":
+            elif event_type == "tool.call":
                 if not waiting_sound_active:
                     waiting_sound_active = True
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "start"})
-                tool_result = await execute_tool(event, aai_ws)
+                tool_result = await execute_tool(event, assemblyai_ws)
                 # Check if generate_image or edit_image produced an image
                 result_data = tool_result.get("result", {})
                 
                 if isinstance(result_data, dict) and result_data.get("has_image"):
-                    img_data_url = get_image_data_url()
-                    if img_data_url:
-                        await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
+                    image_data_url = get_image_data_url()
+                    if image_data_url:
+                        await _send_to_browser(browser_ws, {"type": "image", "data": image_data_url})
                 
                 if isinstance(result_data, dict) and result_data.get("trigger_download"):
                     await _send_to_browser(browser_ws, {"type": "trigger_download"})
@@ -231,10 +231,10 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     
                 pending_tools.append(tool_result)
 
-            elif t == "reply.audio":
+            elif event_type == "reply.audio":
                 await _send_to_browser(browser_ws, {"type": "reply.audio", "data": event.get("data", "")})
 
-            elif t == "reply.done":
+            elif event_type == "reply.done":
                 if event.get("status") == "interrupted":
                     if last_agent_text:
                         print(f"\rAgent (interrupted): {last_agent_text}      ")
@@ -245,17 +245,19 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                     if last_agent_text:
                         print(f"\rAgent: {last_agent_text}      ")
                     last_agent_text = ""
+
                     if pending_tools:
                         for tool in pending_tools:
-                            await aai_ws.send(json.dumps({
+                            await assemblyai_ws.send(json.dumps({
                                 "type": "tool.result",
                                 "call_id": tool["call_id"],
                                 "result": json.dumps(tool["result"]),
                             }))
+
                             if tool.get("voice_update"):
                                 new_voice = tool["voice_update"]
                                 tool_handlers.current_voice = new_voice
-                                await aai_ws.send(json.dumps({
+                                await assemblyai_ws.send(json.dumps({
                                     "type": "session.update",
                                     "session": {
                                         "output": {"voice": new_voice},
@@ -263,26 +265,27 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                                     },
                                 }))
                         pending_tools.clear()
+                        
                 if waiting_sound_active:
                     waiting_sound_active = False
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "stop"})
 
-            elif t in ("error", "session.error"):
+            elif event_type in ("error", "session.error"):
                 print(f"Error: {event.get('message')}")
                 log.error(f"AssemblyAI error: {event.get('message')}")
                 await _send_to_browser(browser_ws, {"type": "error", "message": event.get("message", "Unknown error")})
                 await _send_to_browser(browser_ws, {"type": "sound", "name": "error"})
-                if t == "error":
+                if event_type == "error":
                     break
 
-    except websockets.exceptions.ConnectionClosed as e:
-        log.info(f"AssemblyAI WebSocket closed: {e}")
+    except websockets.exceptions.ConnectionClosed as error:
+        log.info(f"AssemblyAI WebSocket closed: {error}")
         await _send_to_browser(browser_ws, {
             "type": "error",
             "message": "Voice service disconnected. Click logo to reconnect.",
         })
-    except Exception as e:
-        log.error(f"Error processing AssemblyAI events: {e}")
+    except Exception as error:
+        log.error(f"Error processing AssemblyAI events: {error}")
         await _send_to_browser(browser_ws, {
             "type": "error",
             "message": "Voice service error. Click logo to reconnect.",
@@ -299,20 +302,20 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 async def ws_proxy():
     """WebSocket endpoint — each browser connection gets its own AssemblyAI session."""
     browser_ws = websocket._get_current_object()
-    ip = await get_client_ip_ws()
+    client_ip = await get_client_ip_ws()
 
     try:
         # track_session enforces global and per-IP concurrent connection limits.
         # The context manager releases the slot in its finally block, so the count
         # is always decremented correctly even if the session errors or is cancelled.
-        async with track_session(ip):
+        async with track_session(client_ip):
             headers = {"Authorization": f"Bearer {API_KEY}"}
             session_ready = asyncio.Event()
 
             try:
-                async with websockets.connect(URL, additional_headers=headers) as aai_ws:
+                async with websockets.connect(URL, additional_headers=headers) as assemblyai_ws:
                     # Send session config
-                    await aai_ws.send(json.dumps({
+                    await assemblyai_ws.send(json.dumps({
                         "type": "session.update",
                         "session": {
                             "system_prompt": get_system_prompt(),
@@ -326,14 +329,14 @@ async def ws_proxy():
 
                     # Run browser→AAI and AAI→browser concurrently
                     browser_task = asyncio.create_task(
-                        _forward_browser_to_aai(browser_ws, aai_ws, session_ready)
+                        _forward_browser_to_aai(browser_ws, assemblyai_ws, session_ready)
                     )
-                    aai_task = asyncio.create_task(
-                        _process_aai_events(browser_ws, aai_ws, session_ready)
+                    assemblyai_task = asyncio.create_task(
+                        _process_aai_events(browser_ws, assemblyai_ws, session_ready)
                     )
 
                     done, pending = await asyncio.wait(
-                        [browser_task, aai_task],
+                        [browser_task, assemblyai_task],
                         return_when=asyncio.FIRST_COMPLETED,
                     )
                     for task in pending:
@@ -344,17 +347,17 @@ async def ws_proxy():
                         except asyncio.CancelledError:
                             pass
 
-            except websockets.exceptions.InvalidStatusCode as e:
-                log.error(f"Failed to connect to AssemblyAI: {e}")
+            except websockets.exceptions.InvalidStatusCode as error:
+                log.error(f"Failed to connect to AssemblyAI: {error}")
                 await _send_to_browser(browser_ws, {"type": "error", "message": "Failed to connect to voice service"})
-            except Exception as e:
-                log.error(f"WebSocket proxy error: {e}")
-                await _send_to_browser(browser_ws, {"type": "error", "message": str(e)})
+            except Exception as error:
+                log.error(f"WebSocket proxy error: {error}")
+                await _send_to_browser(browser_ws, {"type": "error", "message": str(error)})
 
-    except TooManySessions as e:
+    except TooManySessions as error:
         # Send the rejection reason to the browser before the connection closes
-        log.warning(f"Session rejected for {ip}: {e}")
-        await _send_to_browser(browser_ws, {"type": "error", "message": str(e)})
+        log.warning(f"Session rejected for {client_ip}: {error}")
+        await _send_to_browser(browser_ws, {"type": "error", "message": str(error)})
 
 
 if __name__ == "__main__":
