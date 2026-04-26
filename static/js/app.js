@@ -20,6 +20,8 @@ const appEl = document.getElementById("app");
 const statusEl = document.getElementById("status");
 const generatedImage = document.getElementById("generated-image");
 const downloadBtn = document.getElementById("download-btn");
+const voiceSelectorWrap = document.getElementById("voice-selector-wrap");
+const voiceSelect = document.getElementById("voice-select");
 
 // ── Preload sounds ─────────────────────────────────────────────────
 function preloadSounds() {
@@ -177,7 +179,8 @@ function stopMic() {
 // ── WebSocket connection ───────────────────────────────────────────
 function connectWS() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${proto}//${location.host}/ws`);
+    const voice = encodeURIComponent(voiceSelect.value);
+    ws = new WebSocket(`${proto}//${location.host}/ws?voice=${voice}`);
 
     ws.onopen = () => {
         setStatus("Connecting to voice service...");
@@ -301,9 +304,13 @@ function setState(newState) {
             ws.close();
             ws = null;
         }
+        voiceSelectorWrap.classList.remove("hidden");
+        voiceSelect.disabled = false;
     } else if (newState === "connecting") {
         logo.setAttribute("aria-label", "Cremona, connecting\u2026");
         setStatus("Requesting microphone access...");
+        voiceSelectorWrap.classList.add("hidden");
+        voiceSelect.disabled = true;
     } else if (newState === "active") {
         logo.src = "/static/img/circular_logo_orange.png";
         logo.classList.add("active");

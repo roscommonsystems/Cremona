@@ -158,9 +158,9 @@ def build_system_prompt(memory_str: str, voice: str) -> str:
     return base
 
 
-def get_system_prompt() -> str:
+def get_system_prompt(voice: str = None) -> str:
     memories = load_memories_from_file()
-    return build_system_prompt(format_memories_for_prompt(memories), current_voice)
+    return build_system_prompt(format_memories_for_prompt(memories), voice or current_voice)
 
 
 async def push_system_prompt(ws) -> None:

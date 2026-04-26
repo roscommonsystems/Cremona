@@ -12,6 +12,15 @@
         <h1 class="sr-only">Cremona - Image Editing for the Blind</h1>
         <img id="logo" src="/static/img/circular_logo_teal.png" alt="Cremona" role="button" tabindex="0" aria-label="Cremona, click to start session">
 
+        <div id="voice-selector-wrap" role="group" aria-label="Voice selection">
+            <label for="voice-select" class="sr-only">Select voice</label>
+            <select id="voice-select" aria-label="Select voice">
+                {% for name, description in voice_descriptions.items() %}
+                <option value="{{ name }}"{% if name == default_voice %} selected{% endif %}>{{ name | capitalize }} — {{ description }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <div id="image-container">
             <img id="generated-image" src="" alt="">
         </div>

@@ -17,7 +17,8 @@ from quart_rate_limiter import RateLimiter, rate_limit
 # User modules
 from config import API_KEY, OPEN_ROUTER_API_KEY
 from globals import (
-    URL, GREETING, DEFAULT_VOICE, MAX_RETRIES, BACKOFF_BASE, BACKOFF_CAP,
+    URL, GREETING, DEFAULT_VOICE, VOICE_DESCRIPTIONS, VOICE_LIST,
+    MAX_RETRIES, BACKOFF_BASE, BACKOFF_CAP,
     INACTIVITY_TIMEOUT, MAX_WS_MESSAGE_BYTES,
 )
 from image_store import get_image_data_url
@@ -86,7 +87,11 @@ async def add_security_headers(response):
 @rate_limit(30, timedelta(minutes=1))  # 30 page loads/min per IP
 async def index():
     try:
-        return await render_template("index.html")
+        return await render_template(
+            "index.html",
+            voice_descriptions=VOICE_DESCRIPTIONS,
+            default_voice=DEFAULT_VOICE,
+        )
     except Exception as error:
         logging.debug(f"An error was encountered: {error}")
         raise
@@ -301,23 +306,30 @@ async def ws_proxy():
     headers = {"Authorization": f"Bearer {API_KEY}"}
     session_ready = asyncio.Event()
 
+    _valid_voices = set(VOICE_LIST)
+    _requested = websocket.args.get("voice", DEFAULT_VOICE)
+    voice = _requested if _requested in _valid_voices else DEFAULT_VOICE
+    log.info(f"[ws_proxy] query voice={_requested!r} → using={voice!r}")
+
     # track_session enforces global and per-IP concurrent connection limits.
     # Its finally block releases the slot, so the count is always decremented
     # correctly even if the session errors or is cancelled.
     try:
         async with track_session(client_ip), \
                    websockets.connect(URL, additional_headers=headers) as assemblyai_ws:
-            await assemblyai_ws.send(json.dumps({
+            session_payload = {
                 "type": "session.update",
                 "session": {
-                    "system_prompt": get_system_prompt(),
+                    "system_prompt": get_system_prompt(voice),
                     "greeting": GREETING,
                     "output": {
-                        "voice": DEFAULT_VOICE,
+                        "voice": voice,
                     },
                     "tools": TOOLS,
                 }
-            }))
+            }
+            log.info(f"[ws_proxy] session.update → {json.dumps(session_payload)}")
+            await assemblyai_ws.send(json.dumps(session_payload))
 
             # Run browser→AAI and AAI→browser concurrently
             browser_task = asyncio.create_task(
