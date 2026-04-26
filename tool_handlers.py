@@ -85,15 +85,7 @@ def _convert_image_to_jpeg(image_data_url: str) -> tuple[str | None, str | None]
 
 
 async def change_voice(args: dict, ws) -> dict:
-    global current_voice
     voice = args.get("voice", "")
-    current_voice = voice
-    memories = load_memories_from_file()
-    prompt = build_system_prompt(format_memories_for_prompt(memories), current_voice)
-    await ws.send(json.dumps({
-        "type": "session.update",
-        "session": {"output": {"voice": voice}, "system_prompt": prompt},
-    }))
     return {"success": True, "voice": voice}
 
 
@@ -117,8 +109,8 @@ def load_memories_from_file() -> dict:
 
 
 def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
-    os.makedirs("data", exist_ok=True)
     try:
+        os.makedirs("data", exist_ok=True)
         if os.path.exists(MEMORIES_FILE_PATH):
             with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
                 memories_list = json.load(f)
@@ -175,7 +167,10 @@ def get_system_prompt() -> str:
 
 
 async def push_system_prompt(ws) -> None:
-    await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": get_system_prompt()}}))
+    try:
+        await ws.send(json.dumps({"type": "session.update", "session": {"system_prompt": get_system_prompt()}}))
+    except Exception as err:
+        logging.debug(f"An error was encountered: {err}")
 
 
 async def code_information(args: dict, ws) -> dict:
@@ -189,8 +184,9 @@ async def code_information(args: dict, ws) -> dict:
         with open(path, "r", encoding="utf-8") as f:
             contents = f.read()
         return {"file": file, "contents": contents}
-    except Exception as e:
-        return {"error": str(e)}
+    except Exception as err:
+        logging.debug(f"An error was encountered: {err}")
+        return {"error": str(err)}
 
 
 async def generate_image(args: dict, ws) -> dict:
@@ -430,7 +426,11 @@ async def execute_tool(event: dict, ws) -> dict:
     handler = HANDLERS.get(tool_name)
     t0 = time.perf_counter()
     if handler:
-        result = await handler(tool_args, ws)
+        try:
+            result = await handler(tool_args, ws)
+        except Exception as err:
+            logging.debug(f"An error was encountered: {err}")
+            result = {"error": str(err)}
     else:
         result = {"error": f"Unknown tool: {tool_name}"}
     elapsed = time.perf_counter() - t0

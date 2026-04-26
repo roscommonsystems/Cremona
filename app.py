@@ -29,6 +29,7 @@ from security import (
     RateLimitExceeded,
 )
 from tools import TOOLS
+import tool_handlers
 from tool_handlers import execute_tool, get_system_prompt
 
 logging.basicConfig(level=logging.INFO)
@@ -84,7 +85,11 @@ async def add_security_headers(response):
 @app.route("/")
 @rate_limit(30, timedelta(minutes=1))  # 30 page loads/min per IP
 async def index():
-    return await render_template("index.html")
+    try:
+        return await render_template("index.html")
+    except Exception as err:
+        logging.debug(f"An error was encountered: {err}")
+        raise
 
 
 @app.before_websocket
@@ -116,9 +121,12 @@ async def _forward_browser_to_aai(browser_ws, aai_ws, session_ready):
                 log.warning(f"Oversized WebSocket message ({len(raw)} bytes) dropped")
                 continue
 
-            msg = json.loads(raw)
-            if msg.get("type") == "input.audio" and session_ready.is_set():
-                await aai_ws.send(json.dumps(msg))
+            try:
+                msg = json.loads(raw)
+                if msg.get("type") == "input.audio" and session_ready.is_set():
+                    await aai_ws.send(json.dumps(msg))
+            except Exception as err:
+                logging.debug(f"An error was encountered: {err}")
     except Exception as error:
         log.error(f"Error forwarding browser to AssemblyAI: {error}")
 
@@ -153,7 +161,11 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
 
     try:
         async for message in aai_ws:
-            event = json.loads(message)
+            try:
+                event = json.loads(message)
+            except Exception as err:
+                logging.debug(f"An error was encountered: {err}")
+                continue
             t = event.get("type")
 
             if t == "session.ready":
@@ -205,12 +217,18 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                 tool_result = await execute_tool(event, aai_ws)
                 # Check if generate_image or edit_image produced an image
                 result_data = tool_result.get("result", {})
+                
                 if isinstance(result_data, dict) and result_data.get("has_image"):
                     img_data_url = get_image_data_url()
                     if img_data_url:
                         await _send_to_browser(browser_ws, {"type": "image", "data": img_data_url})
+                
                 if isinstance(result_data, dict) and result_data.get("trigger_download"):
                     await _send_to_browser(browser_ws, {"type": "trigger_download"})
+                
+                if event.get("name") == "change_voice" and isinstance(result_data, dict):
+                    tool_result["voice_update"] = result_data.get("voice")
+                    
                 pending_tools.append(tool_result)
 
             elif t == "reply.audio":
@@ -234,6 +252,16 @@ async def _process_aai_events(browser_ws, aai_ws, session_ready):
                                 "call_id": tool["call_id"],
                                 "result": json.dumps(tool["result"]),
                             }))
+                            if tool.get("voice_update"):
+                                new_voice = tool["voice_update"]
+                                tool_handlers.current_voice = new_voice
+                                await aai_ws.send(json.dumps({
+                                    "type": "session.update",
+                                    "session": {
+                                        "output": {"voice": new_voice},
+                                        "system_prompt": get_system_prompt(),
+                                    },
+                                }))
                         pending_tools.clear()
                 if waiting_sound_active:
                     waiting_sound_active = False
