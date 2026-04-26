@@ -120,33 +120,30 @@ async def run_session(ws, speaker, mic_queue, session_ready, timed_out):
                 speaker.write(pcm)
 
             elif t == "reply.done":
-                if event.get("status") == "interrupted":
-                    if last_agent_text:
-                        print(f"\rAgent (interrupted): {last_agent_text}      ")
-                    last_agent_text = ""
+                interrupted = event.get("status") == "interrupted"
+
+                if interrupted and last_agent_text:
+                    print(f"\rAgent (interrupted): {last_agent_text}      ")
+                elif last_agent_text:
+                    print(f"\rAgent: {last_agent_text}      ")
+                last_agent_text = ""
+
+                if interrupted:
                     speaker.abort()   # discard buffered audio immediately
                     speaker.start()   # restart stream for next response
                     pending_tools.clear()  # discard pending tool results — agent is listening again
-                    if waiting_sound is not None:
-                        await waiting_sound.__aexit__(None, None, None)
-                        waiting_sound = None
-                else:
-                    if last_agent_text:
-                        print(f"\rAgent: {last_agent_text}      ")
-                    last_agent_text = ""
-                    agent_script_buffer = ""
-                    if pending_tools:
-                        # Send all accumulated tool results
-                        for tool in pending_tools:
-                            await ws.send(json.dumps({
-                                "type": "tool.result",
-                                "call_id": tool["call_id"],
-                                "result": json.dumps(tool["result"]),
-                            }))
-                        pending_tools.clear()
-                        if waiting_sound is not None:
-                            await waiting_sound.__aexit__(None, None, None)
-                            waiting_sound = None
+
+                for tool in pending_tools:
+                    await ws.send(json.dumps({
+                        "type": "tool.result",
+                        "call_id": tool["call_id"],
+                        "result": json.dumps(tool["result"]),
+                    }))
+                pending_tools.clear()
+
+                if waiting_sound is not None:
+                    await waiting_sound.__aexit__(None, None, None)
+                    waiting_sound = None
 
             elif t in ("error", "session.error"):
                 print(f"Error: {event.get('message')}")

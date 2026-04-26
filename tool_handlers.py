@@ -95,11 +95,11 @@ def load_memories_from_file() -> dict:
     try:
         with open(MEMORIES_FILE_PATH, 'r', encoding='utf-8') as f:
             memories_list = json.load(f)
-        formatted_memories = {}
-        for entry in memories_list:
-            if isinstance(entry, dict) and "memory_topic" in entry and "memory_content" in entry:
-                formatted_memories[entry["memory_topic"]] = entry["memory_content"]
-        return formatted_memories
+        return {
+            entry["memory_topic"]: entry["memory_content"]
+            for entry in memories_list
+            if isinstance(entry, dict) and "memory_topic" in entry and "memory_content" in entry
+        }
     except json.JSONDecodeError as e:
         logging.error(f"Memories file is corrupted: {e}")
         return {}
@@ -117,14 +117,11 @@ def save_memory_to_file(memory_topic: str, memory_content: str) -> bool:
         else:
             memories_list = []
 
-        topic_found = False
         for entry in memories_list:
             if isinstance(entry, dict) and entry.get("memory_topic") == memory_topic:
                 entry["memory_content"] = memory_content
-                topic_found = True
                 break
-
-        if not topic_found:
+        else:
             if len(memories_list) >= MAX_MEMORIES:
                 memories_list.pop(0)
             memories_list.append({"memory_topic": memory_topic, "memory_content": memory_content})
@@ -449,8 +446,12 @@ if __name__ == "__main__":
 
     LOGO_PATH = "assets/circular_logo_teal.png"
 
+    # Mock WebSocket — describe_current_image expects a ws with a send method.
+    class MockWebSocket:
+        async def send(self, message):
+            pass
+
     async def run_test():
-        # Load the logo image and convert to data URL format
         if not os.path.exists(LOGO_PATH):
             print(f"Error: Logo file not found at {LOGO_PATH}")
             return
@@ -458,39 +459,24 @@ if __name__ == "__main__":
         try:
             with open(LOGO_PATH, "rb") as f:
                 image_bytes = f.read()
-
-            # Convert to base64 encoded data URL
-            base64_image = base64.b64encode(image_bytes).decode("utf-8")
-            data_url = f"data:image/png;base64,{base64_image}"
-
-            # Store the image so describe_current_image can retrieve it
-            store_image(data_url, "circular_logo_teal.png")
-            print(f"Stored image from {LOGO_PATH}")
-
         except Exception as e:
             print(f"Error loading/storing image: {e}")
             return
 
-        # Create a mock WebSocket object that does nothing
-        # The describe_current_image function expects a ws argument with a send method
-        class MockWebSocket:
-            async def send(self, message):
-                # Just ignore any websocket messages during testing
-                pass
+        base64_image = base64.b64encode(image_bytes).decode("utf-8")
+        data_url = f"data:image/png;base64,{base64_image}"
+        store_image(data_url, "circular_logo_teal.png")
+        print(f"Stored image from {LOGO_PATH}")
 
         mock_ws = MockWebSocket()
-
-        # Call describe_current_image with empty args (no focus)
         print("\nCalling describe_current_image...")
         result = await describe_current_image({}, mock_ws)
 
-        # Print the result
         print("\n--- Result ---")
         if "error" in result:
             print(f"Error: {result['error']}")
-        else:
-            print(f"Status: {result.get('status', 'unknown')}")
-            print(f"Description: {result.get('description', 'No description returned')}")
+            return
+        print(f"Status: {result.get('status', 'unknown')}")
+        print(f"Description: {result.get('description', 'No description returned')}")
 
-    # Run the async test
     asyncio.run(run_test())

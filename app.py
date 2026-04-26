@@ -215,57 +215,52 @@ async def _process_aai_events(browser_ws, assemblyai_ws, session_ready):
                     waiting_sound_active = True
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "start"})
                 tool_result = await execute_tool(event, assemblyai_ws)
-                # Check if generate_image or edit_image produced an image
                 result_data = tool_result.get("result", {})
-                
-                if isinstance(result_data, dict) and result_data.get("has_image"):
-                    image_data_url = get_image_data_url()
-                    if image_data_url:
-                        await _send_to_browser(browser_ws, {"type": "image", "data": image_data_url})
-                
-                if isinstance(result_data, dict) and result_data.get("trigger_download"):
+                is_dict = isinstance(result_data, dict)
+
+                if is_dict and result_data.get("has_image") and (image_data_url := get_image_data_url()):
+                    await _send_to_browser(browser_ws, {"type": "image", "data": image_data_url})
+                if is_dict and result_data.get("trigger_download"):
                     await _send_to_browser(browser_ws, {"type": "trigger_download"})
-                
-                if event.get("name") == "change_voice" and isinstance(result_data, dict):
+                if is_dict and event.get("name") == "change_voice":
                     tool_result["voice_update"] = result_data.get("voice")
-                    
                 pending_tools.append(tool_result)
 
             elif event_type == "reply.audio":
                 await _send_to_browser(browser_ws, {"type": "reply.audio", "data": event.get("data", "")})
 
             elif event_type == "reply.done":
-                if event.get("status") == "interrupted":
-                    if last_agent_text:
-                        print(f"\rAgent (interrupted): {last_agent_text}      ")
-                    last_agent_text = ""
+                interrupted = event.get("status") == "interrupted"
+
+                if interrupted and last_agent_text:
+                    print(f"\rAgent (interrupted): {last_agent_text}      ")
+                elif last_agent_text:
+                    print(f"\rAgent: {last_agent_text}      ")
+                last_agent_text = ""
+
+                if interrupted:
                     await _send_to_browser(browser_ws, {"type": "reply.interrupted"})
                     pending_tools.clear()
-                else:
-                    if last_agent_text:
-                        print(f"\rAgent: {last_agent_text}      ")
-                    last_agent_text = ""
 
-                    if pending_tools:
-                        for tool in pending_tools:
-                            await assemblyai_ws.send(json.dumps({
-                                "type": "tool.result",
-                                "call_id": tool["call_id"],
-                                "result": json.dumps(tool["result"]),
-                            }))
+                for tool in pending_tools:
+                    await assemblyai_ws.send(json.dumps({
+                        "type": "tool.result",
+                        "call_id": tool["call_id"],
+                        "result": json.dumps(tool["result"]),
+                    }))
+                    if not tool.get("voice_update"):
+                        continue
+                    new_voice = tool["voice_update"]
+                    tool_handlers.current_voice = new_voice
+                    await assemblyai_ws.send(json.dumps({
+                        "type": "session.update",
+                        "session": {
+                            "output": {"voice": new_voice},
+                            "system_prompt": get_system_prompt(),
+                        },
+                    }))
+                pending_tools.clear()
 
-                            if tool.get("voice_update"):
-                                new_voice = tool["voice_update"]
-                                tool_handlers.current_voice = new_voice
-                                await assemblyai_ws.send(json.dumps({
-                                    "type": "session.update",
-                                    "session": {
-                                        "output": {"voice": new_voice},
-                                        "system_prompt": get_system_prompt(),
-                                    },
-                                }))
-                        pending_tools.clear()
-                        
                 if waiting_sound_active:
                     waiting_sound_active = False
                     await _send_to_browser(browser_ws, {"type": "sound_loop", "name": "waiting", "action": "stop"})
@@ -303,60 +298,55 @@ async def ws_proxy():
     """WebSocket endpoint — each browser connection gets its own AssemblyAI session."""
     browser_ws = websocket._get_current_object()
     client_ip = await get_client_ip_ws()
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    session_ready = asyncio.Event()
 
+    # track_session enforces global and per-IP concurrent connection limits.
+    # Its finally block releases the slot, so the count is always decremented
+    # correctly even if the session errors or is cancelled.
     try:
-        # track_session enforces global and per-IP concurrent connection limits.
-        # The context manager releases the slot in its finally block, so the count
-        # is always decremented correctly even if the session errors or is cancelled.
-        async with track_session(client_ip):
-            headers = {"Authorization": f"Bearer {API_KEY}"}
-            session_ready = asyncio.Event()
+        async with track_session(client_ip), \
+                   websockets.connect(URL, additional_headers=headers) as assemblyai_ws:
+            await assemblyai_ws.send(json.dumps({
+                "type": "session.update",
+                "session": {
+                    "system_prompt": get_system_prompt(),
+                    "greeting": GREETING,
+                    "output": {
+                        "voice": DEFAULT_VOICE,
+                    },
+                    "tools": TOOLS,
+                }
+            }))
 
-            try:
-                async with websockets.connect(URL, additional_headers=headers) as assemblyai_ws:
-                    # Send session config
-                    await assemblyai_ws.send(json.dumps({
-                        "type": "session.update",
-                        "session": {
-                            "system_prompt": get_system_prompt(),
-                            "greeting": GREETING,
-                            "output": {
-                                "voice": DEFAULT_VOICE,
-                            },
-                            "tools": TOOLS,
-                        }
-                    }))
+            # Run browser→AAI and AAI→browser concurrently
+            browser_task = asyncio.create_task(
+                _forward_browser_to_aai(browser_ws, assemblyai_ws, session_ready)
+            )
+            assemblyai_task = asyncio.create_task(
+                _process_aai_events(browser_ws, assemblyai_ws, session_ready)
+            )
 
-                    # Run browser→AAI and AAI→browser concurrently
-                    browser_task = asyncio.create_task(
-                        _forward_browser_to_aai(browser_ws, assemblyai_ws, session_ready)
-                    )
-                    assemblyai_task = asyncio.create_task(
-                        _process_aai_events(browser_ws, assemblyai_ws, session_ready)
-                    )
-
-                    done, pending = await asyncio.wait(
-                        [browser_task, assemblyai_task],
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-                    for task in pending:
-                        task.cancel()
-                    for task in pending:
-                        try:
-                            await task
-                        except asyncio.CancelledError:
-                            pass
-
-            except websockets.exceptions.InvalidStatusCode as error:
-                log.error(f"Failed to connect to AssemblyAI: {error}")
-                await _send_to_browser(browser_ws, {"type": "error", "message": "Failed to connect to voice service"})
-            except Exception as error:
-                log.error(f"WebSocket proxy error: {error}")
-                await _send_to_browser(browser_ws, {"type": "error", "message": str(error)})
+            done, pending = await asyncio.wait(
+                [browser_task, assemblyai_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in pending:
+                task.cancel()
+            for task in pending:
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
     except TooManySessions as error:
-        # Send the rejection reason to the browser before the connection closes
         log.warning(f"Session rejected for {client_ip}: {error}")
+        await _send_to_browser(browser_ws, {"type": "error", "message": str(error)})
+    except websockets.exceptions.InvalidStatusCode as error:
+        log.error(f"Failed to connect to AssemblyAI: {error}")
+        await _send_to_browser(browser_ws, {"type": "error", "message": "Failed to connect to voice service"})
+    except Exception as error:
+        log.error(f"WebSocket proxy error: {error}")
         await _send_to_browser(browser_ws, {"type": "error", "message": str(error)})
 
 
