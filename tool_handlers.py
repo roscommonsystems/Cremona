@@ -414,7 +414,7 @@ HANDLERS = {
 
 async def execute_tool(event: dict, ws) -> dict:
     tool_name = event.get("name", "")
-    tool_args = event.get("args", {})
+    tool_args = event.get("arguments", event.get("args", {}))
 
     sanitized_args = _sanitize_args_for_display(tool_args)
     print(f"[Tool Call] name: {tool_name}, args: {sanitized_args}")
