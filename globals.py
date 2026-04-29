@@ -13,7 +13,7 @@ SOUND_WAITING = "assets/cremona-waiting.wav"
 
 # Session
 GREETING = "Hi! How can I help?"
-DEFAULT_VOICE = "kai"
+DEFAULT_VOICE = "river"
 
 # Reconnection
 MAX_RETRIES = 4
@@ -29,42 +29,43 @@ INACTIVITY_TIMEOUT = 15 * 60  # seconds
 
 # Voices
 VOICE_DESCRIPTIONS = {
-    # English voices
-    "josh":     "Conversational, professional, American, male",
-    "dylan":    "Theatrical, energetic, chatty, jagged",
-    "dawn":     "Professional, deliberate, smooth",
-    "summer":   "Empathetic, aesthetic, conversational",
-    "andy":     "Soft, conversational, young",
-    "zoe":      "Smooth, conversational, young",
-    "alexis":   "High-pitched, chatty",
-    "michael":  "Deep, calming, conversational",
-    "pete":     "Smooth, direct, clear, fast-paced",
-    "brian":    "Chatty, nasal, expressive",
-    "diana":    "Soft, older, calming",
-    "grace":    "Southern, older, warm",
-    "kai":      "Californian girl, Slow, calming, ASMR",
-    "claire":   "Lively, young, conversational",
-    "nathan":   "Deep, older",
-    "audrey":   "Deeper, older, calming",
-    "melissa":  "British, clear, smooth, instructive, simple",
-    "will":     "Narrative, British, conversational",
+    # English voices — US accent
+    "ivy":      "Professional, deliberate, smooth",
+    "james":    "Conversational, professional, male",
+    "tyler":    "Theatrical, energetic, chatty, jagged",
+    "autumn":   "Empathetic, aesthetic, conversational",
+    "sam":      "Soft, conversational, young",
+    "mia":      "Smooth, conversational, young",
+    "bella":    "High-pitched, chatty",
+    "david":    "Deep, calming, conversational",
+    "jack":     "Smooth, direct, clear, fast-paced",
+    "kyle":     "Chatty, nasal, expressive",
+    "helen":    "Soft, older, calming",
+    "martha":   "Southern, older, warm",
+    "river":    "Slow, calming, ASMR",
+    "emma":     "Lively, young, conversational",
+    "victor":   "Deep, older",
+    "eleanor":  "Deeper, older, calming",
+    # English voices — British accent
+    "sophie":   "British, clear, smooth, instructive, simple",
+    "oliver":   "Narrative, British, conversational",
     # Multilingual voices
-    "gautam":   "Hindi/Hinglish + English, conversational",
-    "luke":     "Mandarin + English, conversational, native in both",
-    "alexei":   "Russian + English, conversational",
-    "max":      "German + English, British accent, conversational, smooth",
-    "anna":     "German + English, conversational, soft",
-    "antoine":  "French + English, conversational",
-    "jennie":   "Korean + English",
-    "kenji":    "Japanese + English",
-    "lily":     "Mandarin + English",
-    "kevin":    "Korean + English",
-    "nova":     "Italian + English",
-    "marco":    "Italian + English",
-    "sofia":    "Spanish + English",
-    "yuki":     "Japanese + English",
-    "santiago": "Spanish + English",
-    "leo":      "Spanish (Latin American) + English, Colombian",
+    "arjun":    "Hindi/Hinglish + English, conversational",
+    "ethan":    "Mandarin + English, conversational, native in both",
+    "dmitri":   "Russian + English, conversational",
+    "lukas":    "German + English, British accent, conversational, smooth",
+    "lena":     "German + English, conversational, soft",
+    "pierre":   "French + English, conversational",
+    "mina":     "Korean + English",
+    "ren":      "Japanese + English",
+    "mei":      "Mandarin + English",
+    "joon":     "Korean + English",
+    "giulia":   "Italian + English",
+    "luca":     "Italian + English",
+    "lucia":    "Spanish + English",
+    "hana":     "Japanese + English",
+    "mateo":    "Spanish + English",
+    "diego":    "Spanish (Latin American) + English, Colombian",
 }
 VOICE_LIST = list(VOICE_DESCRIPTIONS.keys())
 
