@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cremona - Image Editing for the Blind</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="/static/img/circular_logo_teal.png" type="image/png">
+</head>
+<body>
+    <div id="app">
+        <h1 class="sr-only">Cremona - Image Editing for the Blind</h1>
+        <img id="logo" src="/static/img/circular_logo_teal.png" alt="Cremona" role="button" tabindex="0" aria-label="Cremona, click to start session">
+
+        <div id="voice-selector-wrap" role="group" aria-label="Voice selection">
+            <label for="voice-select" class="sr-only">Select voice</label>
+            <select id="voice-select" aria-label="Select voice">
+                {% for name, description in voice_descriptions.items() %}
+                <option value="{{ name }}"{% if name == default_voice %} selected{% endif %}>{{ name | capitalize }} — {{ description }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div id="image-container">
+            <img id="generated-image" src="" alt="">
+        </div>
+
+        <a id="download-btn" download="generated-image.png" title="Download image" aria-label="Download generated image">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+        </a>
+
+        <div id="status" class="hidden"></div>
+    </div>
+
+    <nav id="links">
+        <a href="https://www.roscommon.systems" target="_blank" rel="noopener" aria-label="return to homepage (opens in new window)">return to homepage</a>
+        <a href="https://github.com" target="_blank" rel="noopener" aria-label="source code (opens in new window)">source code</a>
+    </nav>
+
+    <script src="/static/js/app.js" type="module"></script>
+</body>
+</html>
